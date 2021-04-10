@@ -1,0 +1,48 @@
+{
+  "name": "HappyMeet for Better Meetings",
+  "short_name": "happymeet",
+  "description": "An extension to make meetings better.",
+  "version": "1.0",
+  "permissions": [
+    "storage",
+    "tabs",
+    "identity",
+    "identity.email"
+  ],
+  "author": "Chris Laffra - chris@chrislaffra.com",
+  "content_scripts" : [
+    {
+      "matches" : [
+        "https://docs.google.com/presentation/*",
+        "https://calendar.google.com/*",
+        "https://meet.google.com/*"
+      ],
+      "css" : [
+        "jquery/jquery-ui.min.css",
+        "jquery/jquery-ui.structure.min.css",
+        "jquery/jquery-ui.theme.min.css",
+        "happymeet.css"
+      ],
+      "js" : [
+        "jquery/jquery.min.js",
+        "jquery/jquery-ui.min.js",
+        "calendar.js",
+        "slides.js",
+        "meet.js",
+        "happymeet.js"
+      ],
+      "all_frames" : true
+    }
+  ],
+  "background": {
+    "scripts": [
+      "jquery/jquery.min.js",
+      "background.js"
+    ]
+  },
+  "page_action": {
+    "default_icon": { "38": "person-logo.png" },
+    "default_title": "HappyMeet"
+  },
+  "manifest_version": 2
+}
