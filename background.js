@@ -1,4 +1,4 @@
-const DEBUG = localStorage.getItem("happymeet-debug", "false") == "true";
+const DEBUG = true; // localStorage.getItem("happymeet-debug", "true") == "true";
 const tabIds = new Set();
 const domains = [
     "https://docs.google.com/spreadsheets/",
@@ -8,7 +8,6 @@ const domains = [
     "https://meet.google.com/",
 ];
 var socket;
-var plugins = [];
 
 function openSocket() {
     if (socket && socket.readyState != socket.CLOSED && socket.readyState != socket.CLOSING) {
@@ -20,19 +19,6 @@ function openSocket() {
         for (tabId of tabIds) {
             sendMessage(tabId, message);
         }
-        if (message.type == "plugin") {
-            plugins.push(message.src);
-        }
-    };
-    socket.onopen = function() {
-        log("Socket open");
-        sendSocket({ type: "get-plugins" });
-    };
-    socket.onclose = function(event) {
-        log("Socket closed", event);
-    };
-    socket.onerror = function(error) {
-        log(`Socket error ${error.message}`);
     };
 }
 
@@ -44,9 +30,6 @@ function sendMessage(tabId, message) {
 chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
     if (!tabIds.has(sender.tab.id)) {
         tabIds.add(sender.tab.id);
-        for (const src of plugins) {
-            sendMessage(sender.tab.id, { type: "plugin", src });
-        }
         sendMessage(sender.tab.id, { type: "debug", debug: DEBUG });
     }
     sendSocket(request);
@@ -56,8 +39,9 @@ function sendSocket(message) {
     openSocket();
     switch (socket.readyState) {
         case socket.OPEN:
-            log(`====> ${message.type}`);
-            socket.send(JSON.stringify(message));
+            const event = JSON.stringify(message);
+            log(`====> ${event}`);
+            socket.send(event);
             break;
         case socket.CLOSED:
         case socket.CLOSING:

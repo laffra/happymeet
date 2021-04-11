@@ -1,7 +1,7 @@
 function setupHappyMeetSlides() {
     console.log("HappyMeet loaded for Google Slides.");
 
-    const documentUrl = cleanUrl(document.location.href);
+    const documentId = cleanUrl(document.location.href);
 
     var debug = false;
     var selectedPageNumber = 0;
@@ -26,8 +26,9 @@ function setupHappyMeetSlides() {
             nextSlide();
             sendResponse("OK");
             break;
+        case "add-attachment":
         case "is-happy-attachment":
-            isHappySlides = request.happy;
+            isHappySlides = request.attachment == documentId && request.happy;
             break;
         case "debug":
             debug = request.debug;
@@ -40,12 +41,8 @@ function setupHappyMeetSlides() {
     function checkIsHappy() {
         sendMessage({
             type: "is-happy-attachment",
-            attachment: documentUrl,
+            attachment: documentId,
         });
-    }
-
-    function cleanUrl(url) {
-        return url.replace(/[#?].*/, "");
     }
 
     function previousSlide() {
@@ -92,7 +89,8 @@ function setupHappyMeetSlides() {
             if (html) {
                 sendMessage({
                     type: "slide",
-                    html: html,
+                    attachment: documentId,
+                    html, //  :`PAGE ${selectedPageNumber} of "${document.title}"`,
                     width,
                     height,
                 });
@@ -134,7 +132,11 @@ function setupHappyMeetSlides() {
         if (debug) console.log.apply(console, arguments);
     }
 
+    function cleanUrl(url) {
+        return url.replace("/edit", "").replace(/[?#].*/, "").split("/").pop();
+    }
+
     $("body").mousedown(checkPageNumber);
     setInterval(checkPageNumber, 500);
-    setInterval(checkIsHappy, 5000);
+    checkIsHappy();
 }

@@ -32,10 +32,6 @@ function setupHappyMeetCalendar() {
         });
     }
 
-    function cleanUrl(url) {
-        return url.replace(/[#?].*/, "");
-    }
-
     function addHappyButton(happy) {
         $("button.happy").remove();
         $("button.unhappy").remove();
@@ -119,6 +115,7 @@ function setupHappyMeetCalendar() {
 
     function sendMessage(message) {
         log(`HappyMeet: ====> ` + JSON.stringify(message, undefined, 4));
+        message.calendar = cleanUrl(document.location.href);
         chrome.runtime.sendMessage(message, function(response) { });
     }
 
@@ -140,6 +137,10 @@ function setupHappyMeetCalendar() {
 
     function log() {
         if (debug) console.log.apply(console, arguments);
+    }
+
+    function cleanUrl(url) {
+        return url.replace("/edit", "").replace(/[?#].*/, "").split("/").pop();
     }
 
     setup();

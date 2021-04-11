@@ -27,6 +27,15 @@ button.unhappy:hover {
     background-color: #d2a05e;
 }
 
+message {
+    display: block;
+    padding: 32px;
+    color: white;
+    font-family: 'Google Sans',Roboto,Arial,sans-serif;
+    font-size: 16px;
+    font-weight: 500;
+}
+
 .meetButton {
     position:  absolute;
     background-color: #fff;

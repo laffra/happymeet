@@ -4,6 +4,7 @@ function setupHappyMeetMeet() {
     var state = {
         debug: false,
         inMeeting: false,
+        meetingId: "???",
         initialized: false,
         enabled: localStorage.getItem(HAPPYMEET_ENABLED, "true") == "true",
     };
@@ -14,13 +15,14 @@ function setupHappyMeetMeet() {
     log("HappyMeet loaded for Google Meet.")
 
     chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
+        log("<===", request);
         switch (request.type) {
             case "position":
                 moveBubble(request.moveId, request.position);
                 sendResponse("OK");
                 break;
             case "slide":
-                showSlide(request.html);
+                showSlide(request.meetingId, request.html);
                 sendResponse("OK");
                 break;
             case "debug":
@@ -33,11 +35,9 @@ function setupHappyMeetMeet() {
     });
 
     function sendMessage(message) {
+        message.meetingId = state.meetingId;
         chrome.runtime.sendMessage(message, function (response) {
-            if (debug) {
-                log("===>", message);
-                log("<===", response);
-            }
+            log("===>", message);
         });
     }
 
@@ -158,7 +158,6 @@ function setupHappyMeetMeet() {
             parent.css("background", "transparent");
             parent = parent.parent();
         }
-
     }
 
     function moveBubble(userId, position) {
@@ -174,7 +173,11 @@ function setupHappyMeetMeet() {
         return "happymeet_" + userId.replace(/[^a-zA-Z0-9]/g, "_");
     }
 
-    function showSlide(html) {
+    function showSlide(meetingId, html) {
+        if (!meetingId == state.meetingId) {
+            console.log("showSlide - skip", meetingId, state.meetingId);
+            return;
+        }
         $(".slide").remove();
         const height = $(window).height() - 400;
         const width = height * 16.0 / 9.0;
@@ -231,7 +234,9 @@ function setupHappyMeetMeet() {
             if (presentNowButton.height() >= 80) {
                 state.inMeeting = true;
                 $(".meetButton").css({ top: 0 });
-                sendMessage({ type: "user-connected" });
+                sendMessage({
+                    type: "user-connected",
+                });
                 setTimeout(hideMenus, 3000);
             }
             if (state.enabled) {
@@ -319,9 +324,10 @@ function setupHappyMeetMeet() {
     function setup() {
         if (state.initialized) return;
         addButton();
-        showSlide("<message>Google Slides has not yet connected...</message>");
+        showSlide(state.meetingId, "<message>To show slides:<ul><li>Edit the Calender event for this meeting<li>Add a Google Slides attachment<li>Open it and it will render here</ul></message>");
         setInterval(layout, 500);
         setupMenus();
+        state.meetingId = document.location.pathname.slice(1);
         state.initialized = true;
     }
 
