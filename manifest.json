@@ -1,7 +1,7 @@
 {
-  "name": "HappyMeet for Better Meetings",
+  "name": "HappyMeet - Making Meetings Better",
   "short_name": "happymeet",
-  "description": "An extension to make meetings better.",
+  "description": "A Chrome extension for making meetings better.",
   "version": "0.5",
   "permissions": [
     "storage",
@@ -13,8 +13,8 @@
   "content_scripts" : [
     {
       "matches" : [
-        "https://docs.google.com/presentation/*",
         "https://calendar.google.com/*",
+        "https://docs.google.com/*",
         "https://meet.google.com/*"
       ],
       "css" : [

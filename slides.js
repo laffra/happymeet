@@ -2,13 +2,13 @@ function setupHappyMeetSlides() {
     console.log("HappyMeet loaded for Google Slides.");
 
     const documentUrl = cleanUrl(document.location.href);
-    const debug = false;
+    const DEBUG = false;
 
     var selectedPageNumber = 0;
     var isHappySlides = false;
 
     chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
-        if (debug) console.log(`HappyMeet: <==== ` + JSON.stringify(request, undefined, 4));
+        log(`HappyMeet: <==== ` + JSON.stringify(request, undefined, 4));
         switch (request.type) {
         case "previous-slide":
             previousSlide();
@@ -70,7 +70,7 @@ function setupHappyMeetSlides() {
     }
 
     function sendMessage(message) {
-        if (debug) console.log(`HappyMeet: ====> ` + JSON.stringify(message, undefined, 4));
+        log(`HappyMeet: ====> ` + JSON.stringify(message, undefined, 4));
         chrome.runtime.sendMessage(message, function(response) { });
     }
 
@@ -125,6 +125,10 @@ function setupHappyMeetSlides() {
             };
             img.src = image.attr("href");
         })
+    }
+
+    function log() {
+        if (DEBUG) console.log.apply(console, arguments);
     }
 
     $("body").mousedown(checkPageNumber);

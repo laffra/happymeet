@@ -1,7 +1,7 @@
 function setupHappyMeetCalendar() {
-    console.log("HappyMeet loaded for Google Calendar.")
+    log("HappyMeet loaded for Google Calendar.")
 
-    const debug = false;
+    const DEBUG = false;
 
     var checker = setTimeout(() => {}, 1);
     var attachments = {};
@@ -79,7 +79,7 @@ function setupHappyMeetCalendar() {
 
     chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
         if (request.meetingId != findMeetId()) return;
-        if (debug) console.log(`HappyMeet: <==== ` + JSON.stringify(request, undefined, 4));
+        log(`HappyMeet: <==== ` + JSON.stringify(request, undefined, 4));
         switch (request.type) {
             case "make-happy":
             case "make-un-happy":
@@ -116,7 +116,7 @@ function setupHappyMeetCalendar() {
     }
 
     function sendMessage(message) {
-        if (debug) console.log(`HappyMeet: ====> ` + JSON.stringify(message, undefined, 4));
+        log(`HappyMeet: ====> ` + JSON.stringify(message, undefined, 4));
         chrome.runtime.sendMessage(message, function(response) { });
     }
 
@@ -134,6 +134,10 @@ function setupHappyMeetCalendar() {
                 }
             }
         );
+    }
+
+    function log() {
+        if (DEBUG) console.log.apply(console, arguments);
     }
 
     setup();
