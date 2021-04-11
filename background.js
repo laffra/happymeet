@@ -1,4 +1,4 @@
-const DEBUG = true;
+const DEBUG = localStorage.getItem("happymeet-debug", "false") == "true";
 const tabIds = new Set();
 const domains = [
     "https://docs.google.com/spreadsheets/",
@@ -47,6 +47,7 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
         for (const src of plugins) {
             sendMessage(sender.tab.id, { type: "plugin", src });
         }
+        sendMessage(sender.tab.id, { type: "debug", debug: DEBUG });
     }
     sendSocket(request);
 });

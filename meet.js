@@ -1,10 +1,8 @@
 function setupHappyMeetMeet() {
-    log("HappyMeet loaded for Google Meet.")
-
     const HAPPYMEET_ENABLED = "happymeet-enabled";
-    const DEBUG = false;
 
     var state = {
+        debug: false,
         inMeeting: false,
         initialized: false,
         enabled: localStorage.getItem(HAPPYMEET_ENABLED, "true") == "true",
@@ -12,6 +10,8 @@ function setupHappyMeetMeet() {
     var topMenu, bottomMenu;
     var installedFonts = {};
     var myBubble;
+
+    log("HappyMeet loaded for Google Meet.")
 
     chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
         switch (request.type) {
@@ -21,6 +21,10 @@ function setupHappyMeetMeet() {
                 break;
             case "slide":
                 showSlide(request.html);
+                sendResponse("OK");
+                break;
+            case "debug":
+                state.debug = request.debug;
                 sendResponse("OK");
                 break;
             default:
@@ -322,7 +326,7 @@ function setupHappyMeetMeet() {
     }
 
     function log() {
-        if (DEBUG) console.log.apply(console, arguments);
+        if (state.debug) console.log.apply(console, arguments);
     }
 
     setup();

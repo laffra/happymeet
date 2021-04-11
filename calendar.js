@@ -1,8 +1,7 @@
 function setupHappyMeetCalendar() {
     log("HappyMeet loaded for Google Calendar.")
 
-    const DEBUG = false;
-
+    var debug = false;
     var checker = setTimeout(() => {}, 1);
     var attachments = {};
 
@@ -86,6 +85,9 @@ function setupHappyMeetCalendar() {
             case "is-happy":
                 addHappyButton(request.happy);
                 break;
+            case "debug":
+                debug = request.debug;
+                break;
             default:
                 sendResponse("FAIL");
         }
@@ -137,7 +139,7 @@ function setupHappyMeetCalendar() {
     }
 
     function log() {
-        if (DEBUG) console.log.apply(console, arguments);
+        if (debug) console.log.apply(console, arguments);
     }
 
     setup();

@@ -2,8 +2,8 @@ function setupHappyMeetSlides() {
     console.log("HappyMeet loaded for Google Slides.");
 
     const documentUrl = cleanUrl(document.location.href);
-    const DEBUG = false;
 
+    var debug = false;
     var selectedPageNumber = 0;
     var isHappySlides = false;
 
@@ -28,6 +28,9 @@ function setupHappyMeetSlides() {
             break;
         case "is-happy-attachment":
             isHappySlides = request.happy;
+            break;
+        case "debug":
+            debug = request.debug;
             break;
         default:
             sendResponse("FAIL");
@@ -128,7 +131,7 @@ function setupHappyMeetSlides() {
     }
 
     function log() {
-        if (DEBUG) console.log.apply(console, arguments);
+        if (debug) console.log.apply(console, arguments);
     }
 
     $("body").mousedown(checkPageNumber);
