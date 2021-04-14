@@ -1,28 +1,39 @@
 function setupHappyMeetMeet() {
     const HAPPYMEET_ENABLED = "happymeet-enabled";
+    const EMOJIS = [ "😜", "😂", "😍", "👏", "👍", "🙌", "🙈", "😄", "🎉", "💜" ];
 
     var state = {
         debug: false,
         inMeeting: false,
         meetingId: "???",
         initialized: false,
+        attachment: undefined,
         enabled: localStorage.getItem(HAPPYMEET_ENABLED, "true") == "true",
     };
+    var checker = setTimeout(() => {}, 1);
     var topMenu, bottomMenu;
     var installedFonts = {};
-    var myBubble;
+    var pageY;
 
     log("HappyMeet loaded for Google Meet.")
 
     chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
         log("<===", request);
         switch (request.type) {
-            case "position":
-                moveBubble(request.moveId, request.position);
+            case "emoji":
+                animateEmoji(request.userId, request.emoji);
+                sendResponse("OK");
+                break;
+            case "update-bubble":
+                updateBubble(request.userId, request.left, request.top, request.large);
                 sendResponse("OK");
                 break;
             case "slide":
-                showSlide(request.meetingId, request.html);
+                showSlide(request.meetingId, request.attachment, request.slide);
+                sendResponse("OK");
+                break;
+            case "start-meeting":
+                handleBubbleChanged($(".bubble.me"));
                 sendResponse("OK");
                 break;
             case "debug":
@@ -41,157 +52,246 @@ function setupHappyMeetMeet() {
         });
     }
 
-    function layoutVideos() {
-        $("video").each(function () {
-            const video = $(this);
-            const bubble = video.closest("div[data-initial-participant-id]");
-            if (!bubble.length) return;
-            const userId = sanitizeId(bubble.attr("data-initial-participant-id"));
-            resizeVideo(bubble, video, userId);
-            checkIfMyBubble(bubble);
+    function findNewVideos() {
+        $("div[data-initial-participant-id]").each(function () {
+            const originalVideoContainer = $(this);
+            const video = originalVideoContainer.find("video");
+            if (video.length == 0) return;
+            const userId = sanitizeId(originalVideoContainer.attr("data-initial-participant-id"));
+            var bubble = $("#" + userId);
+            if (bubble.length == 0) {
+                const picture = originalVideoContainer.find("img");
+                bubble = createNewBubble(video, picture, userId);
+                watchBubbleVolume(bubble, video);
+                if (checkIfMyBubble(bubble, originalVideoContainer)) {
+                    makeDraggable(bubble);
+                    addResizeToggle(bubble);
+                    addEmojis(bubble);
+                }
+            }
+            bubble.find(".clip").append(video);
+            hideMeetUI(originalVideoContainer);
         });
     }
 
-    function checkIfMyBubble(bubble) {
-        const name = bubble.find("div[data-self-name]").first();
-        if (myBubble || !name.length || name.attr("data-self-name") != name.text()) return;
-        myBubble = bubble;
-        sendMessage({
-            type: "position",
-            moveId: bubble.attr("id"),
-            position: bubble.position(),
-        });
-    }
-
-    function resizeVideo(bubble, video, userId) {
-        bubble
+    function createNewBubble(video, picture, userId) {
+        log("Create new bubble for " + userId);
+        return $("<div>")
             .attr("id", userId)
             .addClass("bubble")
-            .draggable({
-                scroll: false,
-                start: (event, ui) => {
-                },
-                drag: (event, ui) => {
-                    bubble.attr("left", bubble.css("left"));
-                    bubble.attr("top", bubble.css("top"));
-                },
-                stop: (event, ui) => {
-                    sendMessage({
-                        type: "position",
-                        moveId: userId,
-                        position: ui.helper.position(),
-                    });
-                },
-            })
+            .prependTo(".happymeet .bubbles")
             .css({
-                background: "transparent",
-                transition: "none",
-                animation: "none",
-                width: 100,
-                height: 100,
-                margin: "0 0 0 -50px",
-                position: "absolute"
-            });
+                position: "absolute",
+                top: 200 + Math.random() * 200,
+                left: Math.random() * 200,
+            })
+            .append(
+                $("<div>")
+                    .text(findNameElementFromVideo(video).text())
+                    .addClass("name"),
+                $("<div>")
+                    .addClass("clip")
+                    .append(picture)
+            );
+    }
 
-        if (!bubble.attr("left")) {
-            bubble.css({
-                left: $(window).width() / 2 - 300 + Math.random() * 600,
-                top: $(window).height() / 2 - 300 + Math.random() * 600,
-            });
-            bubble.attr("left", bubble.css("left"));
-            bubble.attr("top", bubble.css("top"));
+    function makeDraggable(bubble) {
+        bubble.draggable({
+            scroll: false,
+            containment: ".happymeet .bubbles",
+            start: (event, ui) => {
+                bubble.attr("dragging", true);
+            },
+            drag: (event, ui) => {
+                handleBubbleChanged(bubble, ui.helper.position().left, ui.helper.position().top);
+            },
+            stop: (event, ui) => {
+                bubble.attr("dragging", false);
+            },
+        });
+    }
+
+    function findNameElementFromVideo(video) {
+        // this function is fragile as it assumes certain DOM structure
+        const nameBar = video.parent().parent().next();
+        const nameElement = nameBar.children().first().children().last();
+        return nameElement;
+    }
+
+    function watchBubbleVolume(bubble, video) {
+        const volumeter = findNameElementFromVideo(video).prev().children().first();
+        const clip = bubble.find(".clip");
+        const position = clip.position();
+        var lastRing = new Date().getTime();
+        function addRing() {
+            const now = new Date().getTime();
+            if (now - lastRing < 300) return;
+            lastRing = now;
+            $("<div>")
+                .addClass("ring")
+                .prependTo(bubble)
+                .css({
+                    borderWidth: 8,
+                    opacity: 0.5,
+                    top: position.top - 4,
+                    left: position.left - 4,
+                    width: clip.width(),
+                    height: clip.height(),
+                })
+                .animate({
+                    borderWidth: 1,
+                    top: position.top - 40,
+                    left: position.left - 40,
+                    width: clip.width() + 80,
+                    height: clip.height() + 80,
+                    opacity: 0,
+                }, 1000, function() { $(this).remove(); });
         }
+        new MutationObserver(addRing).observe(volumeter[0], { attributes: true });
+    }
 
-        video
-            .css({
-                width: 200,
-                height: 200,
-                marginTop: -50,
-                marginLeft: -50,
-                curser: "hand"
-            });
+    function hideMeetUI(parent) {
+        parent.parent().parent().css("opacity", "0");
+    }
 
-        video.parent()
-            .addClass("video-parent")
-            .css({
-                background: "black",
-                overflow: "hidden",
-                margin: "0 0 0 50px",
-                width: 100,
-                height: 100,
-                left: -50,
-                top: 5,
-                borderRadius: "50%",
-            });
+    function checkIfMyBubble(bubble, originalVideoContainer) {
+        const name = originalVideoContainer.find("div[data-self-name]").first();
+        if (!name.length || name.attr("data-self-name") != name.text()) return false;
+        bubble.addClass("me");
+        handleBubbleChanged(bubble);
+        return true;
+    }
 
-        video.parent().parent()
-            .css({
-                background: "transparent",
-                cursor: "pointer",
-                height: 120,
-                width: 120,
+    function handleBubbleChanged(bubble) {
+        checkBubbleLeftRight(bubble);
+        sendMessage({
+            type: "update-bubble",
+            userId: bubble.attr("id"),
+            left: bubble.position().left / $(".bubbles").width(),
+            top: bubble.position().top / $(".bubbles").height(),
+            large: bubble.hasClass("large"),
+        });
+    }
+
+    function addResizeToggle(bubble) {
+        bubble.append($("<div>")
+            .addClass("sizetoggle")
+            .mousedown(function(event) {
+                if (bubble.hasClass("large")) {
+                    bubble.removeClass("large");
+                } else {
+                    bubble.addClass("large");
+                }
+                handleBubbleChanged(bubble);
+                event.stopPropagation();
             })
-            .next()
-            .css({
-                // the microphone status and name
-                background: "transparent",
-                width: 200,
-                top: 120,
-                left: -10,
-            })
-            .next()
-            .css({
-                top: -10000,
-            });
+        );
+    }
 
-        bubble
-            .find("img")
-            .css({
-                width: 90,
-                height: 90,
-                marginTop: -20,
-                marginLeft: -30,
-            });
-
-        var parent = video.parent().parent();
-        while (parent.length) {
-            parent.css("background", "transparent");
-            parent = parent.parent();
+    function addEmojis(bubble) {
+        const emojiTray = $("<div>").addClass("emojis").appendTo(bubble);
+        for (const emoji of EMOJIS) {
+            $("<div>")
+                .text(emoji)
+                .mouseup(() => sendMessage({
+                    type: "emoji",
+                    userId: bubble.attr("id"),
+                    emoji,
+                }))
+                .appendTo(emojiTray);
         }
     }
 
-    function moveBubble(userId, position) {
+    function animateEmoji(userId, emoji) {
         const bubble = $(`#${userId}`);
-        if (bubble.length) {
-            bubble.css({ left: position.left, top: position.top });
-        } else {
-            setTimeout(() => moveBubble(userId, position), 1000);
+        const clip = bubble.find(".clip");
+        const middle = clip.offset().left + clip.width() / 2 - 20;
+        const center = clip.offset().top + clip.height() / 2 - 30;
+        for (var angle=0; angle < Math.PI * 2; angle += Math.PI / 6) {
+            const left = middle + Math.cos(angle) * 500;
+            const top = center + Math.sin(angle) * 500;
+            $("<div>")
+                .addClass("emoji")
+                .appendTo($(".happymeet"))
+                .text(emoji)
+                .css({
+                    fontSize: 62,
+                    left: middle,
+                    top: center,
+                })
+                .animate({
+                    fontSize: 22,
+                    left,
+                    top,
+                    opacity: 0,
+                }, 3000, "linear", function() { $(this.remove() )});
         }
+    }
+
+    function checkBubbleLeftRight(bubble) {
+        if (!bubble.position()) return;
+        if (bubble.position().left > $(".happymeet").width() / 2) {
+            bubble.addClass("left");
+            bubble.removeClass("right");
+        } else {
+            bubble.addClass("right");
+            bubble.removeClass("left");
+        }
+    }
+
+    function updateBubble(userId, left, top, large) {
+        const bubble = $(`#${userId}`);
+        if (bubble.hasClass("me")) return;
+        if (bubble.length == 0) {
+            // HappyMeet was faster than Google Meet. Try again in a second.
+            return setTimeout(() => updateBubble(userId, left, top, large), 1000);
+        }
+        bubble
+            .filter((index, element) => $(element).attr("dragging") != "true")
+            .css({
+                left: left * $(".bubbles").width(),
+                top: top * $(".bubbles").height(),
+            });
+        if (large) {
+            bubble.addClass("large");
+        } else {
+            bubble.removeClass("large");
+        }
+        checkBubbleLeftRight(bubble);
     }
 
     function sanitizeId(userId) {
-        return "happymeet_" + userId.replace(/[^a-zA-Z0-9]/g, "_");
+        return "bubble-" + userId.replace(/[^a-zA-Z0-9]/g, "_");
     }
 
-    function showSlide(meetingId, html) {
-        if (!meetingId == state.meetingId) {
-            console.log("showSlide - skip", meetingId, state.meetingId);
+    function addHappyMeet() {
+        if (!state.inMeeting || $(".happymeet").length > 0) return;
+        $("<div>")
+            .addClass("happymeet")
+            .append($("<div>")
+                .addClass("slide")
+                .append($("<message>To show slides:<ul><li>Edit the Calender event for this meeting<li>Add a Google Slides attachment<li>Open it and it will render here</ul></message>"))
+            )
+            .append($("<div>")
+                .addClass("bubbles")
+            )
+            .prependTo(bottomMenu.parent());
+    }
+
+    function showSlide(meetingId, attachment, slide) {
+        console.log("show slide", meetingId == state.meetingId, attachment);
+        if (meetingId != state.meetingId) {
             return;
         }
-        $(".slide").remove();
-        const height = $(window).height() - 400;
-        const width = height * 16.0 / 9.0;
-        $("<div>")
-            .addClass("slide")
-            .html(html)
-            .prependTo("body")
+        state.attachment = attachment;
+        $(".happymeet .slide")
+            .empty()
+            .append($(slide))
             .find("svg")
                 .css({
                     position: "static",
-                    width,
-                    height,
                 });
-        $(".slide text")
+        $(".happymeet .slide text")
             .css("font-family", function() {
                 const fontName = $(this).css("font-family").replace("docs-", "");
                 installFont(fontName);
@@ -213,59 +313,92 @@ function setupHappyMeetMeet() {
         return video;
     }
 
-    function hideMenus() {
+    function findMenus() {
         if (!state.enabled || topMenu) return;
         try {
-            topMenu = getPreviewVideo().parent().parent().parent().parent().parent().parent().parent().parent()
-                .animate({ "top": -50 }, 1000);
-            bottomMenu = $("div[aria-label|='Meeting details'").parent().parent().parent()
-                .animate({ "bottom": -100 }, 1000);
-            meetButton = $(".meetButton")
-                .animate({ top: -50 }, 1000);
+            topMenu = getPreviewVideo().parent().parent().parent().parent().parent().parent().parent().parent();
+            bottomMenu = $("div[aria-label|='Meeting details'").parent().parent().parent();
+            meetButton = $(".meetButton");
         } catch(e) {
             log(e);
         }
-        setTimeout(hideMenus, 1000);
     }
 
-    function layout() {
+    function checkMeetingStatus() {
         $("div[role='button'] i:contains('present_to_all')").each(function () {
             const presentNowButton = $(this).closest("div[role='button']");
             if (presentNowButton.height() >= 80) {
+                if (!state.inMeeting) {
+                    sendMessage({ type: "start-meeting" });
+                }
                 state.inMeeting = true;
+                findMenus();
+                addHappyMeet();
                 $(".meetButton").css({ top: 0 });
-                sendMessage({
-                    type: "user-connected",
-                });
-                setTimeout(hideMenus, 3000);
+            } else {
+                if (state.inMeeting) {
+                    sendMessage({ type: "stop-meeting" });
+                }
+                state.inMeeting = false;
             }
             if (state.enabled) {
                 presentNowButton.remove();
             }
         });
+    }
+
+    function check() {
+        checkMeetingStatus();
         if (state.enabled && state.inMeeting) {
-            layoutVideos();
+            findNewVideos();
             removePins();
         }
     }
 
+    function showTopMenu() {
+        $(".meetButton").css({ top: 0 });
+        if (!topMenu) return;
+        topMenu.css({ top: 0 });
+    }
+
+    function showBottomMenu() {
+        if (!bottomMenu) return;
+        bottomMenu.css({ bottom: 0 });
+    }
+
+    function hideMenus() {
+        const height = $(window).height();
+        if (pageY < 50 || pageY > height - 100) {
+            return;
+        }
+        $(".meetButton").css({ top: -50 });
+        if (!topMenu) return;
+        topMenu.css({ top: -50 });
+        bottomMenu.css({ bottom: -100 });
+    }
+
     function setupMenus() {
+        setupSlideNavigator();
+    }
+
+    function setupMenuHider() {
         $("body")
             .mousemove(function (event) {
-                if (!state.inMeeting) return;
                 const height = $(window).height();
-                if (event.pageY < 50) {
-                    topMenu.css({ top: 0 });
-                    $(".meetButton").css({ top: 0 });
-                } else if (event.pageY > height - 100) {
-                    bottomMenu.css({ bottom: 0 });
+                pageX = event.pageX;
+                pageY = event.pageY;
+                if (pageY < 50) {
+                    showTopMenu();
+                } else if (pageY > height - 100) {
+                    showBottomMenu();
                 } else {
-                    topMenu.css({ top: -50 });
-                    $(".meetButton").css({ top: -50 });
-                    bottomMenu.css({ bottom: -100 });
+                    setTimeout(hideMenus, 2000);
                 }
-                layoutVideos();
             })
+    }
+  
+    function setupSlideNavigator() {
+        $("body")
             .keyup(function (event) {
                 switch (event.which) {
                     case 33: // page up
@@ -273,7 +406,9 @@ function setupHappyMeetMeet() {
                     case 38: // arrow up
                     case 75: // k
                     case 72: // h
-                        sendMessage({ type: "previous-slide" });
+                        if (state.attachment) {
+                            sendMessage({ type: "previous-slide", attachment: state.attachment });
+                        }
                         break;
                     case 32: // space
                     case 34: // page down
@@ -281,13 +416,19 @@ function setupHappyMeetMeet() {
                     case 40: // arrow down
                     case 74: // j
                     case 76: // l
-                        sendMessage({ type: "next-slide" });
+                        if (state.attachment) {
+                            sendMessage({ type: "next-slide", attachment: state.attachment });
+                        }
                         break;
                     case 36: // home
-                        sendMessage({ type: "first-slide" });
+                        if (state.attachment) {
+                            sendMessage({ type: "first-slide", attachment: state.attachment });
+                        }
                         break;
                     case 35: // end
-                        sendMessage({ type: "last-slide" });
+                        if (state.attachment) {
+                            sendMessage({ type: "last-slide", attachment: state.attachment });
+                        }
                         break;
                     case 70: // f
                         fullscreen();
@@ -310,7 +451,7 @@ function setupHappyMeetMeet() {
     }
 
     function fullscreen() {
-        $("document")[0].requestFullscreen();
+        document.body.requestFullscreen();
     }
 
     function installFont(fontName) {
@@ -322,13 +463,15 @@ function setupHappyMeetMeet() {
     }
 
     function setup() {
-        if (state.initialized) return;
         addButton();
-        showSlide(state.meetingId, "<message>To show slides:<ul><li>Edit the Calender event for this meeting<li>Add a Google Slides attachment<li>Open it and it will render here</ul></message>");
-        setInterval(layout, 500);
+        setupMenuHider();
+        if (!state.enabled) return;
+        $("body").bind("DOMSubtreeModified", function() {
+            clearTimeout(checker);
+            checker = setTimeout(check, 1);
+        });
         setupMenus();
         state.meetingId = document.location.pathname.slice(1);
-        state.initialized = true;
     }
 
     function log() {

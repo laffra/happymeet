@@ -11,24 +11,38 @@ function setupHappyMeetSlides() {
         log(`HappyMeet: <==== ` + JSON.stringify(request, undefined, 4));
         switch (request.type) {
         case "previous-slide":
-            previousSlide();
-            sendResponse("OK");
+            if (request.attachment == documentId) {
+                isHappySlides = true;
+                previousSlide();
+                sendResponse("OK");
+            }
             break;
         case "first-slide":
-            firstSlide();
-            sendResponse("OK");
+            if (request.attachment == documentId) {
+                isHappySlides = true;
+                firstSlide();
+                sendResponse("OK");
+            }
             break;
         case "last-slide":
-            lastSlide();
-            sendResponse("OK");
+            if (request.attachment == documentId) {
+                isHappySlides = true;
+                lastSlide();
+                sendResponse("OK");
+            }
             break;
         case "next-slide":
-            nextSlide();
-            sendResponse("OK");
+            if (request.attachment == documentId) {
+                isHappySlides = true;
+                nextSlide();
+                sendResponse("OK");
+            }
             break;
-        case "add-attachment":
+        case "live-attachment":
         case "is-happy-attachment":
             isHappySlides = request.attachment == documentId && request.happy;
+        case "start-meeting":
+            sendCurrentSlide();
             break;
         case "debug":
             debug = request.debug;
@@ -85,12 +99,13 @@ function setupHappyMeetSlides() {
 
     function sendCurrentSlide() {
         if (!isHappySlides) return;
-        getSlide(selectedPageNumber, (html, width, height) => {
-            if (html) {
+        getSlide(selectedPageNumber, (slide, width, height) => {
+            if (slide) {
                 sendMessage({
                     type: "slide",
+                    targets: ["meet"],
                     attachment: documentId,
-                    html, //  :`PAGE ${selectedPageNumber} of "${document.title}"`,
+                    slide,
                     width,
                     height,
                 });
