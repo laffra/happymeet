@@ -14,4 +14,4 @@ build: min
 	cp manifest.json person-logo.png build
 	mkdir -p build/jquery
 	cp jquery/*.min.* build/jquery
-	(cd build && zip -r -X "../happymeet-0.5.zip" .)
+	(cd build && zip -r -X "../archive/happymeet-0.6.zip" .)
