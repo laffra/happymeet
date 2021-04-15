@@ -1,7 +1,7 @@
 function setupHappyMeetCalendar() {
     log("HappyMeet loaded for Google Calendar.")
 
-    var debug = false;
+    var verbose = false;
     var checker = setTimeout(() => {}, 1);
     var attachments = {};
 
@@ -18,6 +18,7 @@ function setupHappyMeetCalendar() {
         sendMessage(
             {
                 type: "set-attachments",
+                target: ["calendar"],
                 meetingId,
                 attachments: Array.from(newAttachments),
             },
@@ -38,8 +39,8 @@ function setupHappyMeetCalendar() {
     chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
         if (request.meetingId != findMeetId()) return;
         switch (request.type) {
-            case "debug":
-                debug = request.debug;
+            case "verbose":
+                verbose = request.verbose;
                 break;
             default:
                 sendResponse("FAIL");
@@ -54,7 +55,7 @@ function setupHappyMeetCalendar() {
     }
 
     function log() {
-        if (debug) console.log.apply(console, arguments);
+        if (verbose) console.log.apply(console, arguments);
     }
 
     function cleanUrl(url) {

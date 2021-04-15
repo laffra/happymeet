@@ -1,9 +1,9 @@
 function setupHappyMeetSlides() {
-    console.log("HappyMeet loaded for Google Slides.");
+    console.log("Loaded.");
 
     const documentId = cleanUrl(document.location.href);
 
-    var debug = false;
+    var verbose = false;
     var selectedPageNumber = 0;
     var isHappySlides = false;
 
@@ -43,21 +43,22 @@ function setupHappyMeetSlides() {
         case "start-meeting":
             sendCurrentSlide();
             break;
-        case "debug":
-            debug = request.debug;
+        case "verbose":
+            verbose = request.verbose;
             break;
         default:
             sendResponse("FAIL");
         }
         if (request.slide) {
-            request.slide = `... ${request.slide.length} bytes ...`;
+            request.slide = `... ${request.slide.length} characters ...`;
         }
-        log(`HappyMeet: <==== ` + JSON.stringify(request, undefined, 4));
+        log(`  <= ` + JSON.stringify(request, undefined, 4));
     });
 
     function checkIsHappy() {
         sendMessage({
             type: "is-happy-attachment",
+            target: ["slides"],
             attachment: documentId,
         });
     }
@@ -88,8 +89,10 @@ function setupHappyMeetSlides() {
 
     function sendMessage(message) {
         chrome.runtime.sendMessage(message, function(response) { });
-        message.slide = `... ${message.slide.length} bytes ...`;
-        log(`HappyMeet: ====> ` + JSON.stringify(message, undefined, 4));
+        if (message.slide) {
+            message.slide = `... ${message.slide.length} bytes ...`;
+        }
+        log(`  => ` + JSON.stringify(message, undefined, 4));
     }
 
     function checkPageNumber() {
@@ -109,12 +112,11 @@ function setupHappyMeetSlides() {
                     type: "slide",
                     targets: ["meet"],
                     attachment: documentId,
+                    pageNumber: selectedPageNumber,
                     slide,
                     width,
                     height,
                 });
-            } else {
-                setTimeout(sendCurrentSlide, 1000);
             }
         });
     }
@@ -147,8 +149,11 @@ function setupHappyMeetSlides() {
         })
     }
 
-    function log() {
-        if (debug) console.log.apply(console, arguments);
+    function log(message) {
+        if (!verbose) return;
+        const now = new Date();
+        const when = `${now.getHours()}:${now.getMinutes()}:${now.getSeconds()}`;
+        console.log(when, `HappyMeet: "${message}"`);
     }
 
     function cleanUrl(url) {

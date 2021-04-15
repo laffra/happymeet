@@ -53,6 +53,7 @@ message {
 } 
 
 .happymeet {
+    z-index: 5;
     position: absolute;
     display: block;
     left: 0;

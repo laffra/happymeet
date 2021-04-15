@@ -1,12 +1,12 @@
-const DEBUG = true;
-const tabIds = new Set();
-const domains = [
-    "https://docs.google.com/spreadsheets/",
-    "https://docs.google.com/presentation/",
-    "https://docs.google.com/document/",
-    "https://calendar.google.com/",
-    "https://meet.google.com/",
-];
+const VERBOSE = true;
+const tabIds = {};
+const domains = {
+    "https://docs.google.com/spreadsheets/": "sheet",
+    "https://docs.google.com/presentation/": "slides",
+    "https://docs.google.com/document/": "doc",
+    "https://calendar.google.com/": "calendar",
+    "https://meet.google.com/": "meet",
+};
 var socket;
 
 function openSocket() {
@@ -16,23 +16,46 @@ function openSocket() {
     socket = new WebSocket("wss://aheadinthecloudcomputing.com/happymeet");
     socket.onmessage = function (event) {
         const message = JSON.parse(event.data);
-        for (tabId of tabIds) {
-            sendMessage(tabId, message);
+        for (tabId in tabIds) {
+            if (isTarget(tabId, message)) {
+                sendMessage(parseInt(tabId), message);
+            }
         }
     };
 }
 
+function isTarget(tabId, message) {
+    if (!message.target) return true;
+    const targetType = tabIds[tabId];
+    for (target of message.target) {
+        if (target == targetType) {
+            return true;
+        }
+    }
+    return false;
+}
+
+function getTargetType(url) {
+    for (const domain in domains) {
+        if (url.startsWith(domain)) {
+            return domains[domain];
+        }
+    }
+    return "???";
+}
+
 function sendMessage(tabId, message) {
-    log(`  <== ${tabId} ${message.type}`);
     chrome.tabs.sendMessage(tabId, message);
+    log(`<=  ${tabId} `, message);
 }
 
 chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
-    if (!tabIds.has(sender.tab.id)) {
-        tabIds.add(sender.tab.id);
-        sendMessage(sender.tab.id, { type: "debug", debug: DEBUG });
+    if (!tabIds[sender.tab.id]) {
+        tabIds[sender.tab.id] = getTargetType(sender.tab.url);
+        sendMessage(sender.tab.id, { type: "verbose", verbose: VERBOSE });
     }
     sendSocket(request);
+    sendResponse("OK");
 });
 
 function sendSocket(message) {
@@ -41,13 +64,7 @@ function sendSocket(message) {
         case socket.OPEN:
             var event = JSON.stringify(message);
             socket.send(event);
-            if (DEBUG) {
-                if (message.slide) {
-                    message.slide = `... ${message.slide.length} bytes ...`;
-                    event = JSON.stringify(message);
-                }
-                log(`====> ${event}`);
-            }
+            log(`  =>`, message)
             break;
         case socket.CLOSED:
         case socket.CLOSING:
@@ -60,7 +77,7 @@ function sendSocket(message) {
 
 chrome.tabs.query({}, function(tabs) {
     for (const tab of tabs) {
-        for (const domain of domains) {
+        for (const domain in domains) {
             if (tab.url.startsWith(domain)) {
                 chrome.tabs.reload(tab.id);
             }
@@ -68,8 +85,15 @@ chrome.tabs.query({}, function(tabs) {
     }
 });
 
-function log() {
-    if (DEBUG) console.log.apply(console, arguments);
+function log(tag, message) {
+    if (!VERBOSE) return;
+    if (message.slide) {
+        const tmp = JSON.parse(JSON.stringify(message));
+        tmp.slide = `... ${message.slide.length} characters ...`;
+        console.log(tag, JSON.stringify(tmp, undefined, 4));
+    } else {
+        console.log(tag, JSON.stringify(message, undefined, 4));
+    }
 }
 
 openSocket();
