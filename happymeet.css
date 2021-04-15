@@ -63,7 +63,6 @@ message {
 } 
 
 .happymeet .bubbles {
-    z-index: 5;
     position: absolute;
     left: 0;
     top: 0;

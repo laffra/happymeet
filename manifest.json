@@ -2,12 +2,10 @@
   "name": "HappyMeet - Making Meetings Better",
   "short_name": "happymeet",
   "description": "A Chrome extension for making meetings better.",
-  "version": "0.6",
+  "version": "0.11",
   "permissions": [
     "storage",
-    "tabs",
-    "identity",
-    "identity.email"
+    "tabs"
   ],
   "author": "Chris Laffra - chris@chrislaffra.com",
   "content_scripts" : [
@@ -41,7 +39,7 @@
     ]
   },
   "page_action": {
-    "default_icon": { "38": "person-logo.png" },
+    "default_icon": { "38": "happymeet-logo.png" },
     "default_title": "HappyMeet"
   },
   "manifest_version": 2

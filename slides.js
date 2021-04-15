@@ -8,7 +8,6 @@ function setupHappyMeetSlides() {
     var isHappySlides = false;
 
     chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
-        log(`HappyMeet: <==== ` + JSON.stringify(request, undefined, 4));
         switch (request.type) {
         case "previous-slide":
             if (request.attachment == documentId) {
@@ -50,6 +49,10 @@ function setupHappyMeetSlides() {
         default:
             sendResponse("FAIL");
         }
+        if (request.slide) {
+            request.slide = `... ${request.slide.length} bytes ...`;
+        }
+        log(`HappyMeet: <==== ` + JSON.stringify(request, undefined, 4));
     });
 
     function checkIsHappy() {
@@ -84,8 +87,9 @@ function setupHappyMeetSlides() {
     }
 
     function sendMessage(message) {
-        log(`HappyMeet: ====> ` + JSON.stringify(message, undefined, 4));
         chrome.runtime.sendMessage(message, function(response) { });
+        message.slide = `... ${message.slide.length} bytes ...`;
+        log(`HappyMeet: ====> ` + JSON.stringify(message, undefined, 4));
     }
 
     function checkPageNumber() {

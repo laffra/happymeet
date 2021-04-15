@@ -37,7 +37,6 @@ function setupHappyMeetCalendar() {
 
     chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
         if (request.meetingId != findMeetId()) return;
-        log(`HappyMeet: <==== ` + JSON.stringify(request, undefined, 4));
         switch (request.type) {
             case "debug":
                 debug = request.debug;
@@ -45,6 +44,7 @@ function setupHappyMeetCalendar() {
             default:
                 sendResponse("FAIL");
         }
+        log(`HappyMeet: <==== ` + JSON.stringify(request, undefined, 4));
     });
 
     function sendMessage(message) {

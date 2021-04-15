@@ -14,11 +14,11 @@ function setupHappyMeetMeet() {
     var topMenu, bottomMenu;
     var installedFonts = {};
     var pageY;
+    var retryInstalls = 5;
 
     log("HappyMeet loaded for Google Meet.")
 
     chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
-        log("<===", request);
         switch (request.type) {
             case "emoji":
                 animateEmoji(request.userId, request.emoji);
@@ -43,16 +43,21 @@ function setupHappyMeetMeet() {
             default:
                 sendResponse("FAIL");
         }
+        if (request.slide) {
+            request.slide = `... ${request.slide.length} bytes ...`;
+        }
+        log("HappyMeet <===", request);
     });
 
     function sendMessage(message) {
         message.meetingId = state.meetingId;
         chrome.runtime.sendMessage(message, function (response) {
-            log("===>", message);
+            log("HappyMeet ===>", message);
         });
     }
 
     function findNewVideos() {
+        if (!bottomMenu.position()) return;
         $("div[data-initial-participant-id]").each(function () {
             const originalVideoContainer = $(this);
             const video = originalVideoContainer.find("video");
@@ -75,7 +80,6 @@ function setupHappyMeetMeet() {
     }
 
     function createNewBubble(video, picture, userId) {
-        log("Create new bubble for " + userId);
         return $("<div>")
             .attr("id", userId)
             .addClass("bubble")
@@ -119,6 +123,7 @@ function setupHappyMeetMeet() {
     }
 
     function watchBubbleVolume(bubble, video) {
+        if (!bubble.position()) return;
         const volumeter = findNameElementFromVideo(video).prev().children().first();
         const clip = bubble.find(".clip");
         const position = clip.position();
@@ -151,7 +156,7 @@ function setupHappyMeetMeet() {
     }
 
     function hideMeetUI(parent) {
-        parent.parent().parent().css("opacity", "0");
+        // parent.parent().parent().css("opacity", "0");
     }
 
     function checkIfMyBubble(bubble, originalVideoContainer) {
@@ -163,6 +168,7 @@ function setupHappyMeetMeet() {
     }
 
     function handleBubbleChanged(bubble) {
+        if (!bubble.position()) return;
         checkBubbleLeftRight(bubble);
         sendMessage({
             type: "update-bubble",
@@ -265,7 +271,6 @@ function setupHappyMeetMeet() {
     }
 
     function addHappyMeet() {
-        if (!state.inMeeting || $(".happymeet").length > 0) return;
         $("<div>")
             .addClass("happymeet")
             .append($("<div>")
@@ -279,7 +284,6 @@ function setupHappyMeetMeet() {
     }
 
     function showSlide(meetingId, attachment, slide) {
-        console.log("show slide", meetingId == state.meetingId, attachment);
         if (meetingId != state.meetingId) {
             return;
         }
@@ -314,13 +318,23 @@ function setupHappyMeetMeet() {
     }
 
     function findMenus() {
-        if (!state.enabled || topMenu) return;
         try {
             topMenu = getPreviewVideo().parent().parent().parent().parent().parent().parent().parent().parent();
-            bottomMenu = $("div[aria-label|='Meeting details'").parent().parent().parent();
+            bottomMenu = $("div[aria-label|='Leave call'").parent().parent().parent();
             meetButton = $(".meetButton");
         } catch(e) {
             log(e);
+        }
+        if (!topMenu.position() || !bottomMenu.position()) {
+            if (retryInstalls-- > 0) {
+                setTimeout(findMenus, 1000);
+            } else {
+                alert("HappyMeet could not install itself into this meeting. Try reloading the window.");
+            }
+        } else {
+            state.inMeeting = true;
+            addHappyMeet();
+            $(".meetButton").css({ top: 0 });
         }
     }
 
@@ -331,10 +345,7 @@ function setupHappyMeetMeet() {
                 if (!state.inMeeting) {
                     sendMessage({ type: "start-meeting" });
                 }
-                state.inMeeting = true;
                 findMenus();
-                addHappyMeet();
-                $(".meetButton").css({ top: 0 });
             } else {
                 if (state.inMeeting) {
                     sendMessage({ type: "stop-meeting" });

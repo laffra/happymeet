@@ -1,4 +1,4 @@
-const DEBUG = true; // localStorage.getItem("happymeet-debug", "true") == "true";
+const DEBUG = true;
 const tabIds = new Set();
 const domains = [
     "https://docs.google.com/spreadsheets/",
@@ -39,9 +39,15 @@ function sendSocket(message) {
     openSocket();
     switch (socket.readyState) {
         case socket.OPEN:
-            const event = JSON.stringify(message);
-            log(`====> ${event}`);
+            var event = JSON.stringify(message);
             socket.send(event);
+            if (DEBUG) {
+                if (message.slide) {
+                    message.slide = `... ${message.slide.length} bytes ...`;
+                    event = JSON.stringify(message);
+                }
+                log(`====> ${event}`);
+            }
             break;
         case socket.CLOSED:
         case socket.CLOSING:
