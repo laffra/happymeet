@@ -87,9 +87,10 @@ chrome.tabs.query({}, function(tabs) {
 
 function log(tag, message) {
     if (!VERBOSE) return;
-    if (message.slide) {
+    if (message.type == "log") return;
+    if (message.compressedSlide) {
         const tmp = JSON.parse(JSON.stringify(message));
-        tmp.slide = `... ${message.slide.length} characters ...`;
+        tmp.compressedSlide = `... ${message.compressedSlide.length} characters ...`;
         console.log(tag, JSON.stringify(tmp, undefined, 4));
     } else {
         console.log(tag, JSON.stringify(message, undefined, 4));

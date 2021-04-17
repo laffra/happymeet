@@ -1,19 +1,22 @@
 function setupHappyMeetMeet() {
     const HAPPYMEET_ENABLED = "happymeet-enabled";
-    const VIDEO_KEY_1 = "data-requested-participant-id";
-    const VIDEO_KEY_2 = "data-initial-participant-id";
-    const EMOJIS = [ "😜", "😂", "😍", "👏", "👍", "🙌", "🙈", "😄", "🎉", "💜" ];
+    const VIDEO_KEY = "data-initial-participant-id";
+    const EMOJIS = ["😜", "😂", "😍", "👏", "👍", "🙌", "🙈", "😄", "🎉", "💜"];
 
-    var state = {
+    const state = {
         verbose: false,
         inMeeting: false,
-        meetingId: "???",
+        meetingId: getMeetingId(),
         initialized: false,
         attachment: undefined,
         checkErrorCount: 0,
-        enabled: localStorage.getItem(HAPPYMEET_ENABLED, "true") == "true",
+        enabled: false,
+        index: -1,
+        slideCount: 100,
     };
-    var checker = setTimeout(() => {}, 1);
+    const slides = {};
+
+    var checker = setTimeout(() => { }, 1);
     var topMenu, bottomMenu;
     var installedFonts = {};
     var pageY;
@@ -22,6 +25,10 @@ function setupHappyMeetMeet() {
     var imageParent = {};
 
     log({ message: "Loaded." });
+
+    function getMeetingId() {
+        return document.location.pathname.slice(1);
+    }
 
     chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
         try {
@@ -35,7 +42,15 @@ function setupHappyMeetMeet() {
                     sendResponse("OK");
                     break;
                 case "slide":
-                    showSlide(message.meetingId, message.attachment, message.slide);
+                    cacheSlide(message);
+                    sendResponse("OK");
+                    break;
+                case "live-attachment":
+                    liveAttachment(message);
+                    sendResponse("OK");
+                    break;
+                case "show-slide":
+                    showSlide(message);
                     sendResponse("OK");
                     break;
                 case "start-meeting":
@@ -51,11 +66,12 @@ function setupHappyMeetMeet() {
             }
             message.message = `<=  ${message.type}`;
             log(message);
-        } catch(error) {
+        } catch (error) {
             log({
                 message: "Cannot handle runtime message",
                 runtimeMessage: message,
-                error
+                error: error.message,
+                stack: error.stack,
             });
         }
     });
@@ -69,11 +85,12 @@ function setupHappyMeetMeet() {
                     log(message);
                 }
             });
-        } catch(error) {
+        } catch (error) {
             log({
                 message: "Cannot send runtime message",
                 runtimeMessage: message,
-                error
+                error: error.message,
+                stack: error.stack,
             });
         }
     }
@@ -81,11 +98,11 @@ function setupHappyMeetMeet() {
     function findNewVideos() {
         try {
             if (!bottomMenu.position()) return;
-            $(`div[${VIDEO_KEY_1}]`).each(function () {
+            $(`div[${VIDEO_KEY}]`).each(function () {
                 const originalVideoContainer = $(this);
                 const video = originalVideoContainer.find("video");
                 if (video.length == 0) return;
-                const userId = sanitizeId(originalVideoContainer.attr(VIDEO_KEY_1));
+                const userId = sanitizeId(originalVideoContainer.attr(VIDEO_KEY));
                 originalVideoContainer.attr("bubble", userId);
                 videoParent[userId] = video.parent();
                 var bubble = $("#" + userId);
@@ -93,23 +110,23 @@ function setupHappyMeetMeet() {
                     const picture = originalVideoContainer.find("img");
                     imageParent[userId] = picture.parent();
                     bubble = createNewBubble(video, picture, userId);
-                    bubble.attr("key1", originalVideoContainer.attr(VIDEO_KEY_1))
-                    bubble.attr("key2", originalVideoContainer.attr(VIDEO_KEY_2))
+                    bubble.attr("key", originalVideoContainer.attr(VIDEO_KEY))
                     watchBubbleVolume(bubble, video);
                     if (checkIfMyBubble(bubble, originalVideoContainer)) {
                         makeDraggable(bubble);
                         addResizeToggle(bubble);
                         addEmojis(bubble);
                     }
-                    logBubbles("new");
+                    logBubbles(`Found new video for "${bubble.find(".name").text()}`);
                 }
                 bubble.find(".clip").append(video);
                 hideMeetUI();
             });
-        } catch(error) {
+        } catch (error) {
             log({
                 message: "Cannot find new videos",
-                error
+                error: error.message,
+                stack: error.stack,
             });
         }
     }
@@ -133,7 +150,7 @@ function setupHappyMeetMeet() {
                         .addClass("clip")
                         .append(picture)
                 );
-        } catch(error) {
+        } catch (error) {
             log({
                 message: "Cannot create new bubble",
                 video,
@@ -159,11 +176,12 @@ function setupHappyMeetMeet() {
                     bubble.attr("dragging", false);
                 },
             });
-        } catch(error) {
+        } catch (error) {
             log({
                 message: "Cannot make draggable",
                 bubble,
-                error
+                error: error.message,
+                stack: error.stack,
             });
         }
     }
@@ -174,11 +192,12 @@ function setupHappyMeetMeet() {
             const nameBar = video.parent().parent().next();
             const nameElement = nameBar.children().first().children().last();
             return nameElement;
-        } catch(error) {
+        } catch (error) {
             log({
                 message: "Cannot find name element from video",
                 video,
-                error
+                error: error.message,
+                stack: error.stack,
             });
         }
     }
@@ -214,8 +233,8 @@ function setupHappyMeetMeet() {
                             width: clip.width() + 80,
                             height: clip.height() + 80,
                             opacity: 0,
-                        }, 1000, function() { $(this).remove(); });
-                } catch(error) {
+                        }, 1000, function () { $(this).remove(); });
+                } catch (error) {
                     if (bubble) {
                         bubble.attr("ring-error-count", ++ringError);
                         if (ringError == 1) {
@@ -224,30 +243,33 @@ function setupHappyMeetMeet() {
                                 message: "Cannot add ring",
                                 bubble,
                                 video,
-                                error
+                                error: error.message,
+                                stack: error.stack,
                             });
                         }
                     }
                 }
             }
             new MutationObserver(addRing).observe(volumeter[0], { attributes: true });
-        } catch(error) {
+        } catch (error) {
             log({
                 message: "Cannot watch bubble volume",
                 bubble,
                 video,
-                error
+                error: error.message,
+                stack: error.stack,
             });
         }
     }
 
     function getMeetUI() {
         try {
-            return $(`div[${VIDEO_KEY_1}]`).parent().parent();
-        } catch(error) {
+            return $(`div[${VIDEO_KEY}]`).parent().parent();
+        } catch (error) {
             log({
                 message: "Cannot get Meet UI",
-                error
+                error: error.message,
+                stack: error.stack,
             });
         }
     }
@@ -255,37 +277,40 @@ function setupHappyMeetMeet() {
     function hideMeetUI() {
         try {
             getMeetUI().css("opacity", "0");
-        } catch(error) {
+        } catch (error) {
             log({
                 message: "Cannot hide Meet UI",
-                error
+                error: error.message,
+                stack: error.stack,
             });
         }
     }
 
     function showMeetUI() {
         try {
-            $(".bubble").each(function() {
+            $(".bubble").each(function () {
                 try {
                     const bubble = $(this);
                     const userId = bubble.attr("id");
                     videoParent[userId].append(bubble.find("video"));
                     imageParent[userId].append(bubble.find("img"));
-                } catch(error) {
+                } catch (error) {
                     log({
                         message: "Cannot convert bubble to Meet UI",
                         bubble: $(this),
-                        error
+                        error: error.message,
+                        stack: error.stack,
                     });
                 }
             })
             getMeetUI().css("opacity", "1");
             showBottomMenu();
             showTopMenu();
-        } catch(error) {
+        } catch (error) {
             log({
                 message: "Cannot show Meet UI",
-                error
+                error: error.message,
+                stack: error.stack,
             });
         }
     }
@@ -297,12 +322,13 @@ function setupHappyMeetMeet() {
             bubble.addClass("me");
             handleBubbleChanged(bubble, "Found my bubble");
             return true;
-        } catch(error) {
+        } catch (error) {
             log({
                 message: "Cannot check if this is my bubble",
                 bubble,
                 originalVideoContainer,
-                error
+                error: error.message,
+                stack: error.stack,
             });
         }
     }
@@ -321,12 +347,13 @@ function setupHappyMeetMeet() {
                 large: bubble.hasClass("large"),
             });
             logBubbles(reason);
-        } catch(error) {
+        } catch (error) {
             log({
                 message: "Cannot handle bubble changed",
                 bubble,
                 reason,
-                error
+                error: error.message,
+                stack: error.stack,
             });
         }
     }
@@ -344,9 +371,8 @@ function setupHappyMeetMeet() {
                     height: bubble.height(),
                     me: bubble.hasClass("me"),
                     large: bubble.hasClass("large"),
-                    key1: bubble.attr("key1"),
-                    key2: bubble.attr("key2"),
-                    video: $(element).find("video").filter(function() { return !$(this).css("display") != "none"; }).position() ? "present" : "missing",
+                    key: bubble.attr("key"),
+                    video: $(element).find("video").filter(function () { return !$(this).css("display") != "none"; }).position() ? "present" : "missing",
                     img: $(element).find("img").position() ? "present" : "missing",
                     rings: $(element).find(".ring").length ? "present" : "missing",
                     emojis: $(element).find(".emojis").position() ? "present" : "missing",
@@ -361,14 +387,33 @@ function setupHappyMeetMeet() {
     function findOrphanVideos() {
         try {
             $("video")
-                .filter(function() { return !$(this).closest(".bubble"); })
-                .each(function() {
-                    state.orphan
+                .filter(function () { return $(this).css("display") != "none" && !$(this).closest(".bubble").position(); })
+                .each(function () {
                 })
-        } catch(error) {
+        } catch (error) {
             log({
                 message: "Cannot find orphan videos",
-                error
+                error: error.message,
+                stack: error.stack,
+            });
+        }
+    }
+
+    function findUsersThatLeft() {
+        try {
+            $(".bubble").each(function () {
+                const bubble = $(this);
+                const key = bubble.attr("key");
+                if (!$(`div[${VIDEO_KEY}="${key}"]`).position()) {
+                    // user left the call....
+                    bubble.remove();
+                }
+            });
+        } catch (error) {
+            log({
+                message: "Cannot find users that left",
+                error: error.message,
+                stack: error.stack,
             });
         }
     }
@@ -377,7 +422,7 @@ function setupHappyMeetMeet() {
         try {
             bubble.append($("<div>")
                 .addClass("sizetoggle")
-                .mousedown(function(event) {
+                .mousedown(function (event) {
                     try {
                         if (bubble.hasClass("large")) {
                             bubble.removeClass("large");
@@ -386,21 +431,23 @@ function setupHappyMeetMeet() {
                         }
                         handleBubbleChanged(bubble, "User resized bubble");
                         event.stopPropagation();
-                    } catch(error) {
+                    } catch (error) {
                         log({
                             message: "Cannot handle mouse down on resize toggle",
                             bubble,
                             event,
-                            error
+                            error: error.message,
+                            stack: error.stack,
                         });
                     }
                 })
             );
-        } catch(error) {
+        } catch (error) {
             log({
                 message: "Cannot add resize toggle",
                 bubble,
-                error
+                error: error.message,
+                stack: error.stack,
             });
         }
     }
@@ -419,11 +466,12 @@ function setupHappyMeetMeet() {
                     }))
                     .appendTo(emojiTray);
             }
-        } catch(error) {
+        } catch (error) {
             log({
                 message: "Cannot add emojis",
                 bubble,
-                error
+                error: error.message,
+                stack: error.stack,
             });
         }
     }
@@ -432,9 +480,10 @@ function setupHappyMeetMeet() {
         try {
             const bubble = $(`#${userId}`);
             const clip = bubble.find(".clip");
+            if (!clip.offset()) return;
             const middle = clip.offset().left + clip.width() / 2 - 20;
             const center = clip.offset().top + clip.height() / 2 - 30;
-            for (var angle=0; angle < Math.PI * 2; angle += Math.PI / 6) {
+            for (var angle = 0; angle < Math.PI * 2; angle += Math.PI / 6) {
                 const left = middle + Math.cos(angle) * 500;
                 const top = center + Math.sin(angle) * 500;
                 $("<div>")
@@ -451,14 +500,15 @@ function setupHappyMeetMeet() {
                         left,
                         top,
                         opacity: 0,
-                    }, 3000, "linear", function() { $(this.remove() )});
+                    }, 3000, "linear", function () { $(this.remove()) });
             }
-        } catch(error) {
+        } catch (error) {
             log({
                 message: "Cannot animate emojies",
                 userId,
                 emoji,
-                error
+                error: error.message,
+                stack: error.stack,
             });
         }
     }
@@ -473,11 +523,12 @@ function setupHappyMeetMeet() {
                 bubble.addClass("right");
                 bubble.removeClass("left");
             }
-        } catch(error) {
+        } catch (error) {
             log({
                 message: "Cannot check bubble left/right",
                 bubble,
-                error
+                error: error.message,
+                stack: error.stack,
             });
         }
     }
@@ -502,14 +553,15 @@ function setupHappyMeetMeet() {
                 bubble.removeClass("large");
             }
             checkBubbleLeftRight(bubble);
-        } catch(error) {
+        } catch (error) {
             log({
                 message: "Cannot update bubble",
                 userId,
                 top,
                 left,
                 large,
-                error
+                error: error.message,
+                stack: error.stack,
             });
         }
     }
@@ -518,8 +570,15 @@ function setupHappyMeetMeet() {
         return "bubble-" + userId.replace(/[^a-zA-Z0-9]/g, "_");
     }
 
+    function showMyBubble() {
+        if ($(".bubble.me").position()) return;
+        // force my video to show up as a tile, so HappyMeet can discover it
+        triggerMouseClick($("div[aria-label|='Show in a tile']"));
+    }
+
     function addHappyMeet() {
         try {
+            if ($(".happymeet").position()) return;
             $("<div>")
                 .addClass("happymeet")
                 .append($("<div>")
@@ -530,49 +589,132 @@ function setupHappyMeetMeet() {
                     .addClass("bubbles")
                 )
                 .prependTo(bottomMenu.parent());
-        } catch(error) {
+        } catch (error) {
             log({
                 message: "Cannot add happymeet",
-                error
+                error: error.message,
+                stack: error.stack,
             });
         }
     }
 
-    function showSlide(meetingId, attachment, slide) {
+    function cacheSlide(message) {
         try {
-            if (meetingId != state.meetingId) {
+            if (message.meetingId != state.meetingId) {
                 return;
             }
-            state.attachment = attachment;
+            state.attachment = message.attachment;
+            state.slideCount = message.count;
+            slides[message.index] = LZString.decompress(message.compressedSlide);
+            if (message.index == state.index) {
+                showSlide(message);
+            }
+        } catch (error) {
+            log({
+                message: "Cannot cache slide",
+                meetingId: message.meetingId,
+                attachment: message.attachment,
+                slide: slide ? `${slide.length} characters` : slide,
+                error: error.message,
+                stack: error.stack,
+            });
+        }
+    }
+
+    function liveAttachment(message) {
+        try {
+            if (message.meetingId != state.meetingId) {
+                return;
+            }
+            state.attachment = message.attachment;
+            if (state.index == -1) {
+                gotoSlide(0);
+            }
+        } catch (error) {
+            log({
+                message: "Cannot save live attachment",
+                meetingId: message.meetingId,
+                attachment: message.attachment,
+                error: error.message,
+                stack: error.stack,
+            });
+        }
+    }
+
+    function gotoSlide(index) {
+        if (!slides[index]) {
+            $(".happymeet .slide")
+                .empty()
+                .append($(`<message>Loading slide ${index}...</message>`));
+        }
+        state.index = index;
+        fetchSlides(index);
+        sendMessage({
+            type: "show-slide",
+            target: ["meet"],
+            attachment: state.attachment,
+            index: index,
+        });
+    }
+
+    function fetchSlides(index) {
+        for (var n=index; n<index + 3; n++) {
+            getSlide(n);
+        }
+    }
+
+    function getSlide(index) {
+        if (slides[index] || !state.attachment) return;
+        sendMessage({
+            type: "get-slide",
+            target: ["slides"],
+            attachment: state.attachment,
+            index: index,
+        });
+    }
+
+    function showSlide(message) {
+        try {
+            if (message.meetingId != state.meetingId) {
+                return;
+            }
+            state.index = message.index;
+            slide = slides[message.index];
+            if (!slide) {
+                fetchSlides(message.index);
+                return;
+            }
             $(".happymeet .slide")
                 .empty()
                 .append($(slide))
                 .find("svg")
-                    .css({
-                        position: "static",
-                    });
+                .css({
+                    position: "static",
+                });
             $(".happymeet .slide text")
-                .css("font-family", function() {
+                .css("font-family", function () {
                     try {
                         const fontName = $(this).css("font-family").replace("docs-", "");
                         installFont(fontName);
                         return fontName;
-                    } catch(error) {
+                    } catch (error) {
                         log({
                             message: "Cannot get font name",
                             text: $(this),
-                            error
+                            error: error.message,
+                            stack: error.stack,
                         });
                         return "arial";
                     }
                 });
-        } catch(error) {
+        } catch (error) {
             log({
                 message: "Cannot show slide",
-                meetingId,
-                attachment,
+                meetingId: message.meetingId,
+                attachment: message.attachment,
                 slide: slide ? `${slide.length} characters` : slide,
-                error
+                error: error.message,
+                stack: error.stack,
             });
         }
     }
@@ -582,10 +724,11 @@ function setupHappyMeetMeet() {
             $("div[aria-label|='Pin']").remove();
             $("div[aria-label|='Remove']").remove();
             $("div[aria-label|='Mute']").remove();
-        } catch(error) {
+        } catch (error) {
             log({
                 message: "Cannot remove pins",
-                error
+                error: error.message,
+                stack: error.stack,
             });
         }
     }
@@ -597,36 +740,42 @@ function setupHappyMeetMeet() {
                 if ($(this).height() <= 50) video = $(this);
             });
             return video;
-        } catch(error) {
+        } catch (error) {
             log({
                 message: "Cannot get preview video",
-                error
+                error: error.message,
+                stack: error.stack,
             });
         }
     }
 
     function findMenus() {
         try {
+            if (!state.enabled) return;
             topMenu = getPreviewVideo().parent().parent().parent().parent().parent().parent().parent().parent();
             bottomMenu = $("div[aria-label|='Leave call'").parent().parent().parent();
-            meetButton = $(".meetButton");
             topMenu.css("z-index", 6);
             if (!topMenu.position() || !bottomMenu.position()) {
                 if (retryInstalls-- > 0) {
                     setTimeout(findMenus, 1000);
-                } else {
+                } else if (retryInstalls == 0) {
                     alert("HappyMeet could not install itself into this meeting. Try reloading the window.");
                 }
             } else {
                 state.inMeeting = true;
                 addHappyMeet();
-                $(".meetButton").css({ top: 0 });
             }
-        } catch(error) {
-            log({
-                message: "Cannot find menus",
-                error
-            });
+        } catch (error) {
+            if (retryInstalls-- > 0) {
+                setTimeout(findMenus, 1000);
+            } else if (retryInstalls == 0) {
+                log({
+                    message: "Cannot find menus",
+                    error: error.message,
+                    stack: error.stack,
+                });
+                alert("HappyMeet could not install itself into this meeting. Try reloading the window.");
+            }
         }
     }
 
@@ -639,6 +788,7 @@ function setupHappyMeetMeet() {
                         if (!state.inMeeting) {
                             sendMessage({ type: "start-meeting" });
                         }
+                        state.inMeeting = true;
                         findMenus();
                     } else {
                         if (state.inMeeting) {
@@ -646,51 +796,77 @@ function setupHappyMeetMeet() {
                         }
                         state.inMeeting = false;
                     }
-                    if (state.enabled) {
-                        presentNowButton.remove();
+                    if (presentNowButton.height() < 80 && !$(".joinhappymeet").position()) {
+                        presentNowButton
+                            .parent()
+                            .parent()
+                            .append($("<button>")
+                                .addClass("joinhappymeet")
+                                .text("Join with HappyMeet")
+                            )
+                            .click(() => {
+                                if (state.enabled) return;
+                                state.enabled = true;
+                                triggerMouseClick(presentNowButton.parent().children().first().find("span"));
+                            });
                     }
-                } catch(error) {
+                    if (bottomMenu) {
+                        bottomMenu.find(".joinhappymeet").remove();
+                    }
+                } catch (error) {
                     log({
                         message: "Cannot check present button",
-                        error
+                        error: error.message,
+                        stack: error.stack,
                     });
                 }
             });
-        } catch(error) {
+        } catch (error) {
             log({
                 message: "Cannot check meeting status",
-                error
+                error: error.message,
+                stack: error.stack,
             });
         }
+    }
+
+    function triggerMouseClick(node) {
+        const element = node[0];
+        if (!element) return;
+        var clickEvent = document.createEvent ('MouseEvents');
+        clickEvent.initEvent ("click", true, true);
+        element.dispatchEvent (clickEvent);
     }
 
     function check() {
         try {
             if (state.checkErrorCount > 10) return;
             checkMeetingStatus();
+            findUsersThatLeft();
             if (state.enabled && state.inMeeting) {
                 findNewVideos();
                 findOrphanVideos();
                 removePins();
             }
-        } catch(error) {
+        } catch (error) {
             state.checkErrorCount++;
             log({
                 message: "Cannot check",
-                error
+                error: error.message,
+                stack: error.stack,
             });
         }
     }
 
     function showTopMenu() {
         try {
-            $(".meetButton").css({ top: 0 });
             if (!topMenu) return;
             topMenu.css({ top: 0 });
-        } catch(error) {
+        } catch (error) {
             log({
                 message: "Cannot show top menu",
-                error
+                error: error.message,
+                stack: error.stack,
             });
         }
     }
@@ -699,10 +875,11 @@ function setupHappyMeetMeet() {
         try {
             if (!bottomMenu) return;
             bottomMenu.css({ bottom: 0 });
-        } catch(error) {
+        } catch (error) {
             log({
                 message: "Cannot show bottom menu",
-                error
+                error: error.message,
+                stack: error.stack,
             });
         }
     }
@@ -713,14 +890,14 @@ function setupHappyMeetMeet() {
             if (pageY < 50 || pageY > height - 100) {
                 return;
             }
-            $(".meetButton").css({ top: -50 });
             if (!topMenu) return;
             topMenu.css({ top: -50 });
             bottomMenu.css({ bottom: -100 });
-        } catch(error) {
+        } catch (error) {
             log({
                 message: "Cannot hide menus",
-                error
+                error: error.message,
+                stack: error.stack,
             });
         }
     }
@@ -740,21 +917,24 @@ function setupHappyMeetMeet() {
                         } else {
                             setTimeout(hideMenus, 2000);
                         }
-                    } catch(error) {
+                        showMyBubble();
+                    } catch (error) {
                         log({
                             message: "Cannot handle mouse move",
-                            error
+                            error: error.message,
+                            stack: error.stack,
                         });
                     }
                 })
-        } catch(error) {
+        } catch (error) {
             log({
                 message: "Cannot setup menu hider",
-                error
+                error: error.message,
+                stack: error.stack,
             });
         }
     }
-    
+
     function setupSlideNavigator() {
         try {
             $("body")
@@ -766,13 +946,7 @@ function setupHappyMeetMeet() {
                             case 38: // arrow up
                             case 75: // k
                             case 72: // h
-                                if (state.attachment) {
-                                    sendMessage({
-                                        type: "previous-slide",
-                                        target: ["slides"],
-                                        attachment: state.attachment,
-                                    });
-                                }
+                                gotoSlide(Math.max(0, state.index - 1));
                                 break;
                             case 32: // space
                             case 34: // page down
@@ -780,79 +954,33 @@ function setupHappyMeetMeet() {
                             case 40: // arrow down
                             case 74: // j
                             case 76: // l
-                                if (state.attachment) {
-                                    sendMessage({
-                                        type: "next-slide",
-                                        target: ["slides"],
-                                        attachment: state.attachment,
-                                    });
-                                }
+                                gotoSlide(Math.min(state.slideCount, state.index + 1));
                                 break;
                             case 36: // home
-                                if (state.attachment) {
-                                    sendMessage({
-                                        type: "first-slide",
-                                        target: ["slides"],
-                                        attachment: state.attachment,
-                                    });
-                                }
+                                gotoSlide(0);
                                 break;
                             case 35: // end
-                                if (state.attachment) {
-                                    sendMessage({
-                                        type: "last-slide",
-                                        target: ["slides"],
-                                        attachment: state.attachment,
-                                    });
-                                }
+                                gotoSlide(state.slideCount);
                                 break;
                             case 70: // f
                                 fullscreen();
                                 break;
                             default:
-                                // log({ message: `Unhandled key press: keyCode=${event.which}` });
-                            }
-                        } catch(error) {
-                            log({
-                                message: "Cannot handle keyup for slide navigation",
-                                error
-                            });
+                            // log({ message: `Unhandled key press: keyCode=${event.which}` });
                         }
-                    });
-        } catch(error) {
-            log({
-                message: "Cannot setup slide navigator",
-                error
-            });
-        }
-    }
-
-    function addHappyMeetButton() {
-        try {
-            $("<button>")
-                .addClass("meetButton")
-                .text(state.enabled ? "Disable HappyMeet" : "Enable HappyMeet")
-                .click(() => {
-                    try {
-                        state.enabled = !state.enabled;
-                        localStorage.setItem(HAPPYMEET_ENABLED, state.enabled);
-                        if (state.enabled) {
-                            showMeetUI()
-                        } else {
-                            hideMeetUI();
-                        }
-                    } catch(error) {
+                    } catch (error) {
                         log({
-                            message: "Cannot handle click on happymeet button",
-                            error
+                            message: "Cannot handle keyup for slide navigation",
+                            error: error.message,
+                            stack: error.stack,
                         });
                     }
-                })
-                .appendTo($("body"));
-        } catch(error) {
+                });
+        } catch (error) {
             log({
-                message: "Cannot add HappyMeet button",
-                error
+                message: "Cannot setup slide navigator",
+                error: error.message,
+                stack: error.stack,
             });
         }
     }
@@ -860,53 +988,60 @@ function setupHappyMeetMeet() {
     function fullscreen() {
         try {
             document.body.requestFullscreen();
-        } catch(error) {
+        } catch (error) {
             log({
                 message: "Cannot fullscreen",
-                error
+                error: error.message,
+                stack: error.stack,
             });
         }
     }
 
     function installFont(fontName) {
         try {
-            fontName = fontName.replace('"', '').replace(" ","+");
+            fontName = fontName.replace('"', '').replace(" ", "+");
             if (!installedFonts[fontName]) {
                 $("head").prepend(`<link rel="stylesheet" type="text/css" href="//fonts.googleapis.com/css?family=${fontName}"/>`);
                 installedFonts[fontName] = true;
             }
-        } catch(error) {
+        } catch (error) {
             log({
                 message: "Cannot install font",
                 fontName,
-                error
+                error: error.message,
+                stack: error.stack,
             });
         }
     }
 
+    function postSetup() {
+        log({
+            message: `Post setup. Enabled=${state.enabled}`,
+            state,
+        });
+    }
+
     function setup() {
         try {
-            addHappyMeetButton();
             setupMenuHider();
-            if (!state.enabled) return;
-            $("body").bind("DOMSubtreeModified", function() {
+            $("body").bind("DOMSubtreeModified", function () {
                 try {
                     clearTimeout(checker);
                     checker = setTimeout(check, 1);
-                } catch(error) {
+                } catch (error) {
                     log({
                         message: "Cannot handle DOM change",
-                        error
+                        error: error.message,
+                        stack: error.stack,
                     });
                 }
             });
             setupSlideNavigator();
-            state.meetingId = document.location.pathname.slice(1);
-            setInterval(synchronizeLogs, 30000);
-        } catch(error) {
+        } catch (error) {
             log({
                 message: "Cannot setup",
-                error
+                error: error.message,
+                stack: error.stack,
             });
         }
     }
@@ -915,8 +1050,8 @@ function setupHappyMeetMeet() {
         try {
             var now = new Date();
             entry.when = `${now.getHours()}:${now.getMinutes()}:${now.getSeconds()}`;
-            if (entry.slide) {
-                entry.slide = `... ${entry.slide.length} characters ...`;
+            if (entry.compressedSlide) {
+                entry.compressedSlide = `... ${entry.compressedSlide.length} characters ...`;
             }
             sendMessage({
                 type: "log",
@@ -924,16 +1059,18 @@ function setupHappyMeetMeet() {
                 userId: $(".bubble.me").attr("userId"),
                 log: entry,
             })
-            if (state.verbose) {
-                console.log(entry.when, `HappyMeet: "${entry.message}"`);
+            if (entry.error || state.verbose) {
+                console.log(entry.when, `HappyMeet: ${entry.error ? "ERROR: " + entry.error + " - " + entry.stack : ""} ${entry.message}"`);
             }
-        } catch(error) {
+        } catch (error) {
             log({
                 message: "Cannot log",
-                error
+                error: error.message,
+                stack: error.stack,
             });
         }
     }
 
     setup();
+    postSetup();
 }

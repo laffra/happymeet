@@ -2,7 +2,7 @@
   "name": "HappyMeet - Making Meetings Better",
   "short_name": "happymeet",
   "description": "A Chrome extension for making meetings better.",
-  "version": "0.11",
+  "version": "0.17",
   "permissions": [
     "storage",
     "tabs"
@@ -24,6 +24,7 @@
       "js" : [
         "jquery/jquery.min.js",
         "jquery/jquery-ui.min.js",
+        "lzstring.js",
         "calendar.js",
         "slides.js",
         "meet.js",
