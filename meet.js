@@ -627,9 +627,7 @@ function setupHappyMeetMeet() {
                 return;
             }
             state.attachment = message.attachment;
-            if (state.index == -1) {
-                gotoSlide(0);
-            }
+            gotoSlide(message.index);
         } catch (error) {
             log({
                 message: "Cannot save live attachment",
