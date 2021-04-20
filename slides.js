@@ -1,6 +1,7 @@
 function setupHappyMeetSlides() {
 
     const attachment = cleanUrl(document.location.href);
+    const slideIds = [];
     var verbose = true;
 
     log({
@@ -16,6 +17,8 @@ function setupHappyMeetSlides() {
                 sendResponse("OK");
             }
             break;
+        case "live-attachment":
+            break;
         case "verbose":
             verbose = request.verbose;
             break;
@@ -26,14 +29,20 @@ function setupHappyMeetSlides() {
 
     function getSlide(message) {
         try {
-            const thumbnails = $(".punch-filmstrip-thumbnail");
-            getSlideContents(thumbnails.eq(message.index), (slide, width, height) => {
+            showSlide(message.index);
+            const thumbnail = $(".punch-filmstrip-selected-thumbnail-pagenumber").parent();
+            getSlideContents(thumbnail, (slide, width, height) => {
+                if (slide.length < 25) {
+                    console.log("Cannot get slide", message.index, thumbnail.position());
+                    setTimeout(() => getSlide(message), 500);
+                    return;
+                }
                 sendMessage({
                     type: "slide",
                     targets: ["meet"],
                     attachment: attachment,
-                    count: thumbnails.length,
-                    compressedSlide: LZString.compress(slide),
+                    count: slideIds.length,
+                    compressedSlide: compress(slide),
                     index: message.index,
                     width,
                     height,
@@ -47,6 +56,16 @@ function setupHappyMeetSlides() {
             });
 
         }
+    }
+
+    function compress(slide) {
+        const compressedSlide = LZString.compress(slide);
+        if (slide == LZString.decompress(compressedSlide)) {
+            console.log("send compressed slide", slide.length, "=>", compressedSlide.length);
+            return compressedSlide;
+        }
+        console.log("could not compress slide", slide.length);
+        return slide;
     }
 
     function sendMessage(message) {
@@ -93,7 +112,7 @@ function setupHappyMeetSlides() {
             }
             sendMessage({
                 type: "log",
-                target: ["monitor"],
+                targets: ["monitor"],
                 attachment,
                 log: entry,
             })
@@ -112,4 +131,24 @@ function setupHappyMeetSlides() {
     function cleanUrl(url) {
         return url.replace("/edit", "").replace(/[?#].*/, "").split("/").pop();
     }
+
+    function showSlide(index) {
+        if (!slideIds[index]) return;
+        const baseUrl = document.location.href.replace(/#.*/, '');
+        document.location = `${baseUrl}#slide=id.${slideIds[index]}`;
+    }
+
+    function findSlideIds() {
+        $.get(document.location.href, (html) => {
+            const notes = html.match(/"([a-z0-9_]*):notes"/g);
+            const unique = new Set();
+            for (const note of notes.map(note => note.slice(1).replace(":notes\"", ""))) {
+                if (unique.has(note)) continue;
+                unique.add(note);
+                slideIds.push(note);
+            } 
+        })
+    }
+
+    findSlideIds();
 }

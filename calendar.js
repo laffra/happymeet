@@ -18,7 +18,7 @@ function setupHappyMeetCalendar() {
         sendMessage(
             {
                 type: "set-attachments",
-                target: ["calendar"],
+                targets: ["calendar"],
                 meetingId,
                 attachments: Array.from(newAttachments),
             },

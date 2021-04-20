@@ -8,6 +8,7 @@ const domains = {
     "https://meet.google.com/": "meet",
 };
 var socket;
+var cachedSlides = {};
 
 function openSocket() {
     if (socket && socket.readyState != socket.CLOSED && socket.readyState != socket.CLOSING) {
@@ -16,18 +17,25 @@ function openSocket() {
     socket = new WebSocket("wss://aheadinthecloudcomputing.com/happymeet");
     socket.onmessage = function (event) {
         const message = JSON.parse(event.data);
-        for (tabId in tabIds) {
-            if (isTarget(tabId, message)) {
-                sendMessage(parseInt(tabId), message);
-            }
+        broadCastToTabs(message);
+        if (message.type == "slide") {
+            cachedSlides[`${message.attachment}-${message.index}`] = message;
         }
     };
 }
 
+function broadCastToTabs(message) {
+    for (const tabId in tabIds) {
+        if (isTarget(tabId, message)) {
+            sendToTab(parseInt(tabId), message);
+        }
+    }
+}
+
 function isTarget(tabId, message) {
-    if (!message.target) return true;
+    if (!message.targets) return true;
     const targetType = tabIds[tabId];
-    for (target of message.target) {
+    for (target of message.targets) {
         if (target == targetType) {
             return true;
         }
@@ -44,21 +52,57 @@ function getTargetType(url) {
     return "???";
 }
 
-function sendMessage(tabId, message) {
+function sendToTab(tabId, message) {
     chrome.tabs.sendMessage(tabId, message);
-    log(`<=  ${tabId} `, message);
+    log(`<=  [tab:${tabId} type:${tabIds[tabId]}]`, message);
+    
 }
 
-chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
+function getSlideCacheKey(message) {
+    return `${message.attachment}-${message.index}`;
+}
+
+chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
     if (!tabIds[sender.tab.id]) {
         tabIds[sender.tab.id] = getTargetType(sender.tab.url);
-        sendMessage(sender.tab.id, { type: "verbose", verbose: VERBOSE });
+        sendToTab(sender.tab.id, { type: "verbose", verbose: VERBOSE });
     }
-    sendSocket(request);
+    switch (message.type) {
+        case "get-slide":
+            const key = getSlideCacheKey(message);
+            const slide = cachedSlides[key];
+            if (false && slide) {
+                console.log("Slide cache hit", message);
+                sendToTab(sender.tab.id, slide);
+            } else {
+                console.log("Slide cache miss", message);
+                sendToServer(message);
+                sendToTab(sender.tab.id, cachedSlides[key] = {
+                    type: "slide",
+                    targets: [ "meet" ],
+                    attachment: message.attachment,
+                    count: 0,
+                    compressedSlide: LZString.compress(`
+                        <message>
+                            Slow network. Still loading slide ${message.index+1}...
+                        </message>
+                    `),
+                    index: message.index,
+                })
+            }
+            break;
+        case "slide":
+            broadCastToTabs(message);
+            sendToServer(message);
+            break;
+        default:
+            sendToServer(message);
+            break
+    }
     sendResponse("OK");
 });
 
-function sendSocket(message) {
+function sendToServer(message) {
     openSocket();
     switch (socket.readyState) {
         case socket.OPEN:
@@ -70,20 +114,24 @@ function sendSocket(message) {
         case socket.CLOSING:
             openSocket();
         case socket.CONNECTING:
-            setTimeout(() => sendSocket(message), 1000);
+            setTimeout(() => sendToServer(message), 1000);
             break;
     }
 }
 
-chrome.tabs.query({}, function(tabs) {
-    for (const tab of tabs) {
-        for (const domain in domains) {
-            if (tab.url.startsWith(domain)) {
-                chrome.tabs.reload(tab.id);
+try {
+    chrome.tabs.query({}, function(tabs) {
+        for (const tab of tabs) {
+            for (const domain in domains) {
+                if (tab.url.startsWith(domain)) {
+                    chrome.tabs.reload(tab.id);
+                }
             }
         }
-    }
-});
+    });
+} catch(error) {
+    // igore error as this feature is only active during development
+}
 
 function log(tag, message) {
     if (!VERBOSE) return;

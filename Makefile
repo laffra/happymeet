@@ -9,7 +9,8 @@ zip: copy
 copy: 
 	@mkdir -p dist
 	@mkdir -p dist/jquery
-	@cp manifest.json happymeet-logo.png happymeet.css dist
+	@grep -v '"tabs"' < manifest.json > dist/manifest.json
+	cp happymeet-logo.png happymeet.css dist
 	@cp meet.js calendar.js slides.js happymeet.js background.js dist
 	@cp jquery/*.min.* dist/jquery
 

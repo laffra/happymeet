@@ -4,7 +4,6 @@
   "description": "A Chrome extension for making meetings better.",
   "version": "0.18",
   "permissions": [
-    "storage",
     "tabs"
   ],
   "author": "Chris Laffra - chris@chrislaffra.com",
@@ -36,6 +35,7 @@
   "background": {
     "scripts": [
       "jquery/jquery.min.js",
+      "lzstring.js",
       "background.js"
     ]
   },
