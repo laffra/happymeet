@@ -1,0 +1,14 @@
+{
+    "compilerOptions": {
+        "target": "es5",
+        "noImplicitAny": false,
+        "allowSyntheticDefaultImports": true,
+        "sourceMap": false,
+        "moduleResolution": "node",
+        "rootDir": "src",
+        "outDir": "dist",
+        "noEmitOnError": true,
+        "types": [ "chrome", "jqueryui" ],
+        "typeRoots": [ "node_modules/@types" ]
+    },
+}

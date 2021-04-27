@@ -1,3 +1,3 @@
 # HappyMeet - Better Meeting
 
-Improve meetings by integrating Google Calendar, Meet, Docs, and Slides
+Improve meetings by making Google Meet more engaging
