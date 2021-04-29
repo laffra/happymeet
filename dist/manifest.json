@@ -3,7 +3,9 @@
   "short_name": "happymeet",
   "description": "Make Google Meet more engaging.",
   "version": "0.20",
-  "permissions": [],
+  "permissions": [
+      "tabs"
+  ],
   "author": "Chris Laffra - chris@chrislaffra.com",
   "content_scripts" : [
     {
@@ -11,14 +13,14 @@
         "https://meet.google.com/*"
       ],
       "css" : [
-        "jquery-ui.min.css",
-        "jquery-ui.structure.min.css",
-        "jquery-ui.theme.min.css",
+        "jquery/jquery-ui.min.css",
+        "jquery/jquery-ui.structure.min.css",
+        "jquery/jquery-ui.theme.min.css",
         "happymeet.css"
       ],
       "js" : [
-        "jquery.min.js",
-        "jquery-ui.min.js",
+        "jquery/jquery.min.js",
+        "jquery/jquery-ui.min.js",
         "require.js",
         "util.js",
         "bubble.js",
@@ -34,8 +36,8 @@
   ],
   "background": {
     "scripts": [
-      "jquery.min.js",
-      "jquery-ui.min.js",
+      "jquery/jquery.min.js",
+      "jquery/jquery-ui.min.js",
       "require.js",
       "util.js",
       "background.js"
