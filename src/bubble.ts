@@ -133,7 +133,8 @@ export class Bubble {
         const position = this.node.position();
         sendMessage({
             type: "update-bubble",
-            userId: this.userId,
+            userId: this.userId, 
+            reason,
             leftRatio: position.left / $(".bubbles").width(),
             topRatio: position.top / $(".bubbles").height(),
             sizeRatio: this.node.width() / $(".bubbles").width(),
