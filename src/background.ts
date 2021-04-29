@@ -67,7 +67,7 @@ try {
     chrome.tabs.query({}, function(tabs) {
         const meetUrl = "https://meet.google.com/";
         for (const tab of tabs) {
-            if (tab.url.slice(0, meetUrl.length) == meetUrl) {
+            if (tab.url && tab.url.slice(0, meetUrl.length) == meetUrl) {
                 chrome.tabs.reload(tab.id);
             }
         }
