@@ -58,12 +58,16 @@ export function sendMessage(message) {
     });
 }
 
+export function findPin() {
+    const pin = $(`div[data-tooltip="Pin to screen"]`);
+    if (pin.position()) return pin;
+    return $(`div[data-tooltip="Unpin"]`);
+}
+
 export function findNameElementFromVideo(video) {
     try {
         // this function is fragile as it assumes certain DOM structure
-        const nameBar = video.parent().parent().next();
-        const nameElement = nameBar.children().first().children().last();
-        return nameElement;
+        return video.parent().parent().find("div[data-self-name]")
     } catch (error) {
         log("Cannot find name element from video", error, { video });
     }

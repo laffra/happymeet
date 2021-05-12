@@ -53,7 +53,6 @@ function animateEmoji(userId, emoji) {
                 fontSize: 60,
                 left: middle,
                 top: center,
-                zIndex: 100,
             })
             .animate({
                 fontSize: 22,

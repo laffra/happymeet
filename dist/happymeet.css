@@ -54,6 +54,7 @@ message {
     top: 0;
     width: 100%;
     height: 100%;
+    z-index: 102;
 }
 
 .happymeet .drawing {
@@ -75,21 +76,23 @@ message {
     top: 0;
     left: 10vw;
     display: block;
-    width: 80vw;
+    width: 70vw;
+    background-color: #333;
+    z-index: 101;
 }
 
 .happymeet .presentation .message {
     position: absolute; 
     top: 0;
-    left: 15vw;
+    left: 20vw;
     display: block;
     width: 70vw;
-    height: 40vw;
     color: white;
     padding: 50px;
-    border: 1px solid grey;
-    font-size: 24px;
+    font-size: 2vw;
     font-family: Arial, Helvetica, sans-serif;
+    overflow: hidden;
+    z-index: 100;
 }
 
 .happymeet svg {
@@ -122,6 +125,7 @@ button.joinhappymeet {
     height: 150px;
     font-size: 20px;
     text-shadow: 8px 8px 32px black;
+    z-index: 103;
 }
 
 .bubble .resizer {
@@ -133,6 +137,7 @@ button.joinhappymeet {
     border: 0px solid green;
     border-radius: 50%;
     cursor: nwse-resize;
+    z-index: 102;
 }
 
 .bubble:hover .resizer {
@@ -214,6 +219,6 @@ button.joinhappymeet {
 }
 
 .happymeet .emoji {
-    z-index: 6;
     position: absolute;
+    z-index: 103;
 }

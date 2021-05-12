@@ -2,9 +2,8 @@
   "name": "HappyMeet - Making Meetings Better",
   "short_name": "happymeet",
   "description": "Make Google Meet more engaging.",
-  "version": "0.20",
+  "version": "0.21",
   "permissions": [
-      "tabs"
   ],
   "author": "Chris Laffra - chris@chrislaffra.com",
   "content_scripts" : [

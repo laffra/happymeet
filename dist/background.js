@@ -58,7 +58,7 @@ try {
         var meetUrl = "https://meet.google.com/";
         for (var _i = 0, tabs_1 = tabs; _i < tabs_1.length; _i++) {
             var tab = tabs_1[_i];
-            if (tab.url.slice(0, meetUrl.length) == meetUrl) {
+            if (tab.url && tab.url.slice(0, meetUrl.length) == meetUrl) {
                 chrome.tabs.reload(tab.id);
             }
         }

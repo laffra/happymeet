@@ -12,11 +12,13 @@ export class Bubble {
     node: JQuery;
     picture: JQuery;
     video: JQuery;
+    ssrc: string;
     name: string;
   
     constructor(container: JQuery, video: JQuery, userId: string) {
         this.userId = userId;
         this.video = video;
+        this.ssrc = video.parent().attr("data-ssrc");
         this.picture  = container.find("img");
         this.name = findNameElementFromVideo(this.video).text();
         this.node = this.createNode(container, video);
@@ -92,9 +94,8 @@ export class Bubble {
             const node = $(this);
             const key = node.attr("key");
             if (!node.hasClass("me") && !$(`div[${VIDEO_KEY}="${key}"]`).position()) {
-                // user left the call....
+                // user appears to have left the call....
                 node.remove();
-                delete Bubble.allBubbles[node.attr("id")];
             }
         });
     }
@@ -102,10 +103,27 @@ export class Bubble {
     static createBubble(container: JQuery, video: JQuery) {
         const userId = sanitizeId(container.attr(VIDEO_KEY));
         var node = $("#" + userId);
-        if (!node.position()) {
+        const position = node.position();
+        if (!position) {
             node = new Bubble(container, video, userId).node;
         }
-        node.find(".clip").append(video);
+        node.find(".clip")
+            .append(
+                video.addClass("happymeet")
+            );
+    }
+
+    reparentVideo() {
+        this.video
+            .css("opacity", 1)
+            .removeClass("happymeet")
+            .appendTo($(`div[data-ssrc="${this.ssrc}"]`));
+    }
+
+    static reparentVideos() {
+        for (const userId in Bubble.allBubbles) {
+            Bubble.allBubbles[userId].reparentVideo();
+        }
     }
 
     createNode(container: JQuery, video: JQuery): JQuery<HTMLElement> {
@@ -160,8 +178,15 @@ export class Bubble {
     static showMyBubble() {
         if ($(".bubble.me").position()) return;
         // force my video to show up as a tile, so HappyMeet can discover it
-        triggerMouseClick($("div[aria-label|='Show in a tile']"));
     }
+
+    static isPerson(container: JQuery, video: JQuery): boolean {
+        if (container.find("svg").length < 10) return false;
+        const name = findNameElementFromVideo(video).text();
+        if (name && name !== "" && name.indexOf("(") == -1) return true;
+        return false;
+    }
+
 };
 
 function updateBubble(message) {

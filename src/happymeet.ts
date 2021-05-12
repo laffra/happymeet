@@ -1,8 +1,8 @@
-import { Job, VIDEO_KEY, sanitizeId, log } from './util';
+import { Job, VIDEO_KEY, sanitizeId, log, findPin } from './util';
 import { triggerMouseClick, findNameElementFromVideo, sendMessage } from './util';
 import { Bubble } from './bubble';
 import { bottomMenu, findMenus } from './menus';
-import { Presentation } from './presentation';
+import { findPresentationPreview, Presentation } from './presentation';
 
 type Message = any;
 
@@ -15,7 +15,7 @@ class HappyMeet {
         log("Loading.");
         const happymeet = this;
         $("body").on("DOMSubtreeModified", function() {
-            happymeet.domChecker.schedule();
+            happymeet.domChecker.schedule(100);
         });
         chrome.runtime.onMessage.addListener((message: Message, sender: chrome.runtime.MessageSender, sendResponse: (Message) => void) => {
             switch (message.type) {
@@ -35,6 +35,8 @@ class HappyMeet {
         if (!HappyMeet.enabled || !this.inMeeting) return;
         Bubble.findUsersThatLeft();
         this.findNewVideos();
+        findPresentationPreview();
+        Presentation.check();
     }
 
     checkMeetingStatus() {
@@ -46,12 +48,12 @@ class HappyMeet {
         $(`div[${VIDEO_KEY}]`).each(function () {
             const container = $(this);
             const video = container.find("video");
-            if (video.length == 0) return;
-            const name = findNameElementFromVideo(video).text();
-            if (name == "" || name.startsWith("Presentation (")) {
+            if (video.length == 0 || video.hasClass("happymeet")) return;
+            if (Presentation.isPresentation(container, video)) {
                 const userId = sanitizeId(container.attr(VIDEO_KEY));
                 new Presentation(video, userId);
-            } else {
+            }
+            if (Bubble.isPerson(container, video)) {
                 Bubble.createBubble(container, video);
             }
             HappyMeet.hideMeetUI();
@@ -63,7 +65,21 @@ class HappyMeet {
     }
 
     static hideMeetUI() {
-        HappyMeet.getMeetUI().css("opacity", "0");
+        HappyMeet.getMeetUI().css({
+            opacity: 0,
+        });
+        $(".happymeet").css({
+            opacity: 1,
+        });
+    }
+
+    static showMeetUI() {
+        HappyMeet.getMeetUI().css({
+            opacity: 1,
+        });
+        $(".happymeet").css({
+            opacity: 0,
+        });
     }
 
     addHappyMeet() {
@@ -137,6 +153,30 @@ class HappyMeet {
             })
     }
 
+    static disable() {
+        HappyMeet.showMeetUI();
+        HappyMeet.enabled = false;
+        Bubble.reparentVideos();
+        Presentation.reparentVideos();
+    }
+
+    static enable() {
+        HappyMeet.hideMeetUI();
+        HappyMeet.enabled = true;
+    }
 }
+
+$("body")
+    .on("keyup", event => {
+        switch (event.which) {
+            case 77: // m
+                HappyMeet.disable();
+                break;
+            case 72: // h
+                HappyMeet.enable();
+                break;
+        }
+    });
+
 
 new HappyMeet();
