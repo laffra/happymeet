@@ -1,4 +1,4 @@
-import { sendMessage, findPin, triggerMouseClick, findNameElementFromVideo } from "./util";
+import { sendMessage, findNameElement } from "./util";
 
 export class Presentation {
     userId: string;
@@ -55,7 +55,7 @@ export class Presentation {
 
     static isPresentation(container: JQuery, video: JQuery): boolean {
         if (container.find("svg").length >= 10) return false;
-        const name = findNameElementFromVideo(video).text();
+        const name = findNameElement(container).text();
         if (name.startsWith("Presentation (")) return true;
         return false;
     }
@@ -86,9 +86,20 @@ chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
             $(".presentation .message")
                 .empty()
                 .append(
-                    $("<div>").text("Presentation should appear here."),
-                    $("<div>").text("This may take a few seconds."),
-                    $("<div>").text("In case of problems, refresh the window."),
+                    $("<div>")
+                        .text("Presentation should appear here."),
+                    $("<div>")
+                        .text("This may take a few seconds."),
+                    $("<div>").append(
+                        $("<span>")
+                            .text("In case of problems, "),
+                        $("<span>")
+                            .addClass("link")
+                            .text("refresh")
+                            .on("click", () => document.location.reload()),
+                        $("<span>")
+                            .text(" the window."),
+                    )
                 )
             sendResponse("OK");
             break;

@@ -64,12 +64,12 @@ export function findPin() {
     return $(`div[data-tooltip="Unpin"]`);
 }
 
-export function findNameElementFromVideo(video) {
+export function findNameElement(container) {
     try {
         // this function is fragile as it assumes certain DOM structure
-        return video.parent().parent().find("div[data-self-name]")
+        return container.find("div[data-self-name]").first()
     } catch (error) {
-        log("Cannot find name element from video", error, { video });
+        log("Cannot find name element", error, { container });
     }
 }
 

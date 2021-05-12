@@ -2,7 +2,7 @@ import "jqueryui";
 import { addEmojis, checkEmojis } from "./emojis";
 import { makeResizable, resize } from "./resizer";
 import { log, VIDEO_KEY, sanitizeId, triggerMouseClick } from './util';
-import { findNameElementFromVideo, sendMessage } from './util';
+import { findNameElement, sendMessage } from './util';
 
 export class Bubble {
     static myBubble: Bubble;
@@ -15,14 +15,14 @@ export class Bubble {
     ssrc: string;
     name: string;
   
-    constructor(container: JQuery, video: JQuery, userId: string) {
+    constructor(container: JQuery, video: JQuery, img: JQuery, userId: string) {
         this.userId = userId;
         this.video = video;
         this.ssrc = video.parent().attr("data-ssrc");
-        this.picture  = container.find("img");
-        this.name = findNameElementFromVideo(this.video).text();
+        this.picture  = img;
+        this.name = findNameElement(container).text();
         this.node = this.createNode(container, video);
-        this.watchBubbleVolume(video);
+        this.watchBubbleVolume(container);
         if (this.checkIfMyBubble(container)) {
             this.node.addClass("me");
             this.changed("Found my bubble");
@@ -33,9 +33,16 @@ export class Bubble {
         Bubble.allBubbles[userId] = this;
     }
 
-    watchBubbleVolume(video: JQuery) {
+    addVideo(video: JQuery) {
+        this.node.find(".clip")
+            .append(
+                video.addClass("happymeet")
+            );
+    }
+
+    watchBubbleVolume(container: JQuery) {
         const bubble = this;
-        const volumeter = findNameElementFromVideo(video).prev().children().first();
+        const volumeter = container.find("div[data-second-screen]");
         const clip = bubble.node.find(".clip");
         const position = clip.position();
         var lastRingShown = new Date().getTime();
@@ -100,17 +107,13 @@ export class Bubble {
         });
     }
 
-    static createBubble(container: JQuery, video: JQuery) {
+    static createBubble(container: JQuery, video: JQuery, img: JQuery) {
         const userId = sanitizeId(container.attr(VIDEO_KEY));
-        var node = $("#" + userId);
-        const position = node.position();
-        if (!position) {
-            node = new Bubble(container, video, userId).node;
+        var bubble = this.allBubbles[userId];
+        if (!bubble) {
+            bubble = new Bubble(container, video, img, userId);
         }
-        node.find(".clip")
-            .append(
-                video.addClass("happymeet")
-            );
+        bubble.addVideo(video);
     }
 
     reparentVideo() {
@@ -180,9 +183,9 @@ export class Bubble {
         // force my video to show up as a tile, so HappyMeet can discover it
     }
 
-    static isPerson(container: JQuery, video: JQuery): boolean {
+    static isPerson(container: JQuery, video: JQuery, img: JQuery): boolean {
         if (container.find("svg").length < 10) return false;
-        const name = findNameElementFromVideo(video).text();
+        const name = findNameElement(container).text();
         if (name && name !== "" && name.indexOf("(") == -1) return true;
         return false;
     }

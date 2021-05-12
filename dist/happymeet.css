@@ -27,16 +27,6 @@ button.unhappy:hover {
     background-color: #d2a05e;
 }
 
-message {
-    display: block;
-    padding: 32px;
-    color: white;
-    font-family: 'Google Sans',Roboto,Arial,sans-serif;
-    font-size: 16px;
-    font-weight: 500;
-    margin-bottom: 25px;
-}
-
 .happymeet {
     position: absolute;
     display: block;
@@ -93,6 +83,15 @@ message {
     font-family: Arial, Helvetica, sans-serif;
     overflow: hidden;
     z-index: 100;
+}
+
+.happymeet .presentation .message .link {
+    color: lightblue;
+    cursor: pointer;
+}
+
+.happymeet .presentation .message .link:hover {
+    text-decoration: underline;
 }
 
 .happymeet svg {

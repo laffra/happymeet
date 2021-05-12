@@ -1,5 +1,5 @@
 import { Job, VIDEO_KEY, sanitizeId, log, findPin } from './util';
-import { triggerMouseClick, findNameElementFromVideo, sendMessage } from './util';
+import { triggerMouseClick, sendMessage } from './util';
 import { Bubble } from './bubble';
 import { bottomMenu, findMenus } from './menus';
 import { findPresentationPreview, Presentation } from './presentation';
@@ -12,7 +12,6 @@ class HappyMeet {
     domChecker = new Job("DOM Checker", this.check.bind(this));
 
     constructor() {
-        log("Loading.");
         const happymeet = this;
         $("body").on("DOMSubtreeModified", function() {
             happymeet.domChecker.schedule(100);
@@ -48,13 +47,14 @@ class HappyMeet {
         $(`div[${VIDEO_KEY}]`).each(function () {
             const container = $(this);
             const video = container.find("video");
-            if (video.length == 0 || video.hasClass("happymeet")) return;
+            const img = container.find("img");
+            if (video.length == 0 && img.length == 0 || video.hasClass("happymeet")) return;
             if (Presentation.isPresentation(container, video)) {
                 const userId = sanitizeId(container.attr(VIDEO_KEY));
                 new Presentation(video, userId);
             }
-            if (Bubble.isPerson(container, video)) {
-                Bubble.createBubble(container, video);
+            if (Bubble.isPerson(container, video, img)) {
+                Bubble.createBubble(container, video, img);
             }
             HappyMeet.hideMeetUI();
         });
