@@ -1,4 +1,4 @@
-import { sendMessage, findNameElement } from "./util";
+import { sendMessage, findName } from "./util";
 
 export class Presentation {
     userId: string;
@@ -53,9 +53,9 @@ export class Presentation {
         }
     }
 
-    static isPresentation(container: JQuery, video: JQuery): boolean {
+    static isPresentation(container: JQuery, video: JQuery, userId: string): boolean {
         if (container.find("svg").length >= 10) return false;
-        const name = findNameElement(container).text();
+        const name = findName(container, userId) as any;
         if (name.startsWith("Presentation (")) return true;
         return false;
     }

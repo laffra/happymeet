@@ -1,8 +1,8 @@
 import "jqueryui";
 import { addEmojis, checkEmojis } from "./emojis";
 import { makeResizable, resize } from "./resizer";
-import { log, VIDEO_KEY, sanitizeId, triggerMouseClick } from './util';
-import { findNameElement, sendMessage } from './util';
+import { log, VIDEO_KEY, debug } from './util';
+import { findName, sendMessage } from './util';
 
 export class Bubble {
     static myBubble: Bubble;
@@ -20,8 +20,8 @@ export class Bubble {
         this.video = video;
         this.ssrc = video.parent().attr("data-ssrc");
         this.picture  = img;
-        this.name = findNameElement(container).text();
-        this.node = this.createNode(container, video);
+        this.name = findName(container, userId);
+        this.node = this.createNode();
         this.watchBubbleVolume(container);
         if (this.checkIfMyBubble(container)) {
             this.node.addClass("me");
@@ -30,13 +30,20 @@ export class Bubble {
             makeResizable(this);
             addEmojis(this);
         }
+        debug("User joined, add bubble", userId);
         Bubble.allBubbles[userId] = this;
+        log("New bubble", this.name, this);
     }
 
     addVideo(video: JQuery) {
-        this.node.find(".clip")
+        this.node
+            .appendTo(".happymeet .bubbles")
+            .find(".clip")
             .append(
-                video.addClass("happymeet")
+                $(`video[userId="${this.userId}]`),
+                video
+                    .addClass("happymeet")
+                    .attr("userId", this.userId),
             );
     }
 
@@ -74,6 +81,7 @@ export class Bubble {
                     opacity: 0,
                 }, 1500, function() { $(this).remove(); });
         }
+        if (volumeter.length == 0) return;
         new MutationObserver(addRing).observe(volumeter[0], { attributes: true });
     }
 
@@ -96,24 +104,13 @@ export class Bubble {
         });
     }
 
-    static findUsersThatLeft() {
-        $(".bubble").each(function () {
-            const node = $(this);
-            const key = node.attr("key");
-            if (!node.hasClass("me") && !$(`div[${VIDEO_KEY}="${key}"]`).position()) {
-                // user appears to have left the call....
-                node.remove();
-            }
-        });
-    }
-
-    static createBubble(container: JQuery, video: JQuery, img: JQuery) {
-        const userId = sanitizeId(container.attr(VIDEO_KEY));
+    static createBubble(container: JQuery, video: JQuery, img: JQuery, userId: string) {
         var bubble = this.allBubbles[userId];
         if (!bubble) {
             bubble = new Bubble(container, video, img, userId);
         }
-        bubble.addVideo(video);
+        bubble.addVideo(video.parent());
+        bubble.node.css("opacity", 1);
     }
 
     reparentVideo() {
@@ -129,10 +126,10 @@ export class Bubble {
         }
     }
 
-    createNode(container: JQuery, video: JQuery): JQuery<HTMLElement> {
+    createNode(): JQuery<HTMLElement> {
         return $("<div>")
             .attr("id", this.userId)
-            .attr("key", container.attr(VIDEO_KEY))
+            .attr("userId", this.userId)
             .addClass("bubble")
             .prependTo(".happymeet .bubbles")
             .css({
@@ -142,7 +139,7 @@ export class Bubble {
                 })
                 .append(
                     $("<div>")
-                        .text(this.name)
+                        .text(this.userId + "-" + this.name)
                         .addClass("name"),
                     $("<div>")
                         .addClass("clip")
@@ -152,6 +149,7 @@ export class Bubble {
 
     changed(reason: string): void {
         const position = this.node.position();
+        if (!position) return;
         sendMessage({
             type: "update-bubble",
             userId: this.userId, 
@@ -183,11 +181,10 @@ export class Bubble {
         // force my video to show up as a tile, so HappyMeet can discover it
     }
 
-    static isPerson(container: JQuery, video: JQuery, img: JQuery): boolean {
-        if (container.find("svg").length < 10) return false;
-        const name = findNameElement(container).text();
-        if (name && name !== "" && name.indexOf("(") == -1) return true;
-        return false;
+    static isPerson(container: JQuery, userId: string) {
+        const name = findName(container, userId);
+        if (name && name.indexOf("(") !== -1) return false;
+        return true;
     }
 
 };
@@ -202,10 +199,18 @@ function updateBubble(message) {
 }
 
 chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
+    debug("handle message", message.type)
     switch (message.type) {
         case "update-bubble":
             updateBubble(message);
             sendResponse("OK");
+            break;
+        case "leave-meeting":
+            const bubble = Bubble.allBubbles[message.userId];
+            bubble.node
+                .find("video").appendTo($(".bubbles"))
+                .remove();
+            delete Bubble.allBubbles[message.userId];
             break;
         case "start-meeting":
             if (Bubble.myBubble) {

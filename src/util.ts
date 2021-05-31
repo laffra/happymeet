@@ -1,6 +1,7 @@
-export const VIDEO_KEY = "data-initial-participant-id";
+export const VIDEO_KEY = "data-ssrc";
 
 const meetingId = document.location.pathname.slice(1);
+const nameCache: { [key:string]:string; } = {};
 
 export class Job {
     name: string;
@@ -43,6 +44,10 @@ export function log(...args) {
     console.log("HappyMeet:", ...args);
 }
 
+export function debug(...args) {
+    console.log("HappyMeet:", ...args);
+}
+
 export function showMessage(message) {
     $(".happymeet .message")
         .empty()
@@ -53,6 +58,7 @@ export function showMessage(message) {
 
 export function sendMessage(message) {
     message.meetingId = meetingId;
+    log("sendMessage", message);
     chrome.runtime.sendMessage(message, function (response) {
         // OK
     });
@@ -64,20 +70,16 @@ export function findPin() {
     return $(`div[data-tooltip="Unpin"]`);
 }
 
-export function findNameElement(container) {
-    try {
-        // this function is fragile as it assumes certain DOM structure
-        return container.find("div[data-self-name]").first()
-    } catch (error) {
-        log("Cannot find name element", error, { container });
+export function findName(container: JQuery, userId: string): string {
+    let name = container.find("div[data-self-name]").first().text();
+    if (name) {
+        nameCache[userId] = name;
+    } else {
+        name = nameCache[userId];
     }
+    return name || "";
 }
 
 export function getPreviewVideo() {
     return $("video").filter((index, element) => $(element).height() <= 50).first();
 }
-
-export function sanitizeId(userId) {
-    return "bubble-" + userId.replace(/[^a-zA-Z0-9]/g, "_");
-}
-    

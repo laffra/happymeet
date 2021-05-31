@@ -127,6 +127,10 @@ button.joinhappymeet {
     z-index: 103;
 }
 
+.bubble.me {
+    z-index: 104;
+}
+
 .bubble .resizer {
     position: absolute;
     top: 0px;

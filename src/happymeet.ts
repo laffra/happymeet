@@ -1,4 +1,4 @@
-import { Job, VIDEO_KEY, sanitizeId, log, findPin } from './util';
+import { Job, VIDEO_KEY, debug } from './util';
 import { triggerMouseClick, sendMessage } from './util';
 import { Bubble } from './bubble';
 import { bottomMenu, findMenus } from './menus';
@@ -9,6 +9,7 @@ type Message = any;
 class HappyMeet {
     static enabled = false;
     inMeeting = false;
+    noBubbles = true;
     domChecker = new Job("DOM Checker", this.check.bind(this));
 
     constructor() {
@@ -32,29 +33,34 @@ class HappyMeet {
     check() {
         this.checkMeetingStatus();
         if (!HappyMeet.enabled || !this.inMeeting) return;
-        Bubble.findUsersThatLeft();
         this.findNewVideos();
         findPresentationPreview();
         Presentation.check();
+        this.showCaptionDivs();
     }
 
     checkMeetingStatus() {
         $("div[role='button'] i:contains('present_to_all')").each(this.checkPresentButton.bind(this));
+        $("button i:contains('present_to_all')").each(this.checkPresentButton.bind(this));
+        $("body").each(this.checkPresentButton.bind(this));
     }
 
     findNewVideos() {
-        if (!this.inMeeting) return;
-        $(`div[${VIDEO_KEY}]`).each(function () {
-            const container = $(this);
-            const video = container.find("video");
+        if (!this.inMeeting || this.noBubbles) return;
+        $("video").each(function () {
+            const video = $(this);
+            if (video.hasClass("happymeet")) return;
+            const container = video.closest("div[jsmodel]");
+            video.addClass("happymeet");
             const img = container.find("img");
-            if (video.length == 0 && img.length == 0 || video.hasClass("happymeet")) return;
-            if (Presentation.isPresentation(container, video)) {
-                const userId = sanitizeId(container.attr(VIDEO_KEY));
+            const userId = $(this).parent().attr(VIDEO_KEY);
+            if (Presentation.isPresentation(container, video, userId)) {
+                debug("Found a new presentation")
                 new Presentation(video, userId);
             }
-            if (Bubble.isPerson(container, video, img)) {
-                Bubble.createBubble(container, video, img);
+            if (Bubble.isPerson(container, userId)) {
+                debug("Found a new person")
+                Bubble.createBubble(container, video, img, userId);
             }
             HappyMeet.hideMeetUI();
         });
@@ -83,7 +89,7 @@ class HappyMeet {
     }
 
     addHappyMeet() {
-        if ($(".happymeet").position() || !bottomMenu) return;
+        if ($(".happymeet").position()) return;
         $("<div>")
             .addClass("happymeet")
             .append($("<div>")
@@ -93,28 +99,34 @@ class HappyMeet {
             .append($("<div>")
                 .addClass("bubbles")
             )
-            .prependTo(bottomMenu.parent());
+            .prependTo(bottomMenu.parent().parent().parent());
     }
 
     showCaptionDivs() {
-        $("div")
+        $(`div[style^="bottom"]`)
             .filter((index, element) => {
-                const div = $(element);
-                return (div.height() > 100 && parseInt(div.css("bottom")) > 50);
+                return ($(element).css("bottom") === "88px");
             })
             .css({
                 bottom: 8,
-                zIndex: 100,
+                zIndex: 110,
             })
+    }
+
+    meetingActive() {
+        const closedCaptionButton = $("button span:contains('closed_caption')");
+        return closedCaptionButton.height() > 0;
     }
 
     checkPresentButton(index: number, element: Element) {
         const node = $(element);
         const presentNowButton = node.closest("div[role='button']");
         const joinButton = presentNowButton.parent().children().first();
-        if (presentNowButton.height() >= 80) {
+        if (this.meetingActive()) {
             if (!this.inMeeting) {
-                sendMessage({ type: "start-meeting" });
+                sendMessage({
+                    type: "start-meeting",
+                });
             }
             this.inMeeting = true;
             if (HappyMeet.enabled) {
@@ -122,11 +134,18 @@ class HappyMeet {
             }
         } else {
             if (this.inMeeting) {
-                sendMessage({ type: "stop-meeting" });
+                sendMessage({ type:
+                    "leave-meeting",
+                    userId: Bubble.myBubble.userId,
+                });
             }
             this.inMeeting = false;
         }
-        if (presentNowButton.height() < 80 && !$(".joinhappymeet").position()) {
+        if (HappyMeet.enabled) {
+            this.addHappyMeet();
+        }
+        if (!joinButton.position()) return;
+        if (!this.inMeeting && !$(".joinhappymeet").position()) {
             $("<button>")
                 .addClass("joinhappymeet")
                 .text("Join with HappyMeet")
@@ -138,17 +157,18 @@ class HappyMeet {
                 })
                 .appendTo($("body"));
         }
-        this.centerButton();
-        if (HappyMeet.enabled) {
-            this.addHappyMeet();
-            this.showCaptionDivs();
+        if (this.inMeeting) {
+            $(".joinhappymeet").remove();
         }
+        this.centerButton();
     }
 
     centerButton() {
+        const logoOffset = $("img[alt='Meet logo']").offset();
+        if (!logoOffset) return;
         $(".joinhappymeet")
             .css({
-                top: 10,
+                top: logoOffset.top,
                 left: $("body").width()/2 - 60,
             })
     }
