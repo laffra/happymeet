@@ -1,7 +1,6 @@
 export const VIDEO_KEY = "data-ssrc";
 
 const meetingId = document.location.pathname.slice(1);
-const nameCache: { [key:string]:string; } = {};
 
 export class Job {
     name: string;
@@ -32,12 +31,13 @@ export class Job {
     }
 };
 
-export function triggerMouseClick(node) {
-    const element = node[0];
-    if (!element) return;
-    var clickEvent = document.createEvent('MouseEvents');
-    clickEvent.initEvent("click", true, true);
-    element.dispatchEvent(clickEvent);
+export function getUserId() {
+    const you = $(`div[data-self-name="You"]`).filter((index, element) => {
+        return $(element).text() === "You";
+    });
+    const container = you.closest("div[jsmodel]");
+    const videoParent = container.find("div[data-ssrc]");
+    return videoParent.attr("data-ssrc");
 }
 
 export function log(...args) {
@@ -45,15 +45,7 @@ export function log(...args) {
 }
 
 export function debug(...args) {
-    console.log("HappyMeet:", ...args);
-}
-
-export function showMessage(message) {
-    $(".happymeet .message")
-        .empty()
-        .append(
-            $(`<message>${message}</message>`),
-        );
+    // console.log("HappyMeet:", ...args);
 }
 
 export function sendMessage(message) {
@@ -62,24 +54,4 @@ export function sendMessage(message) {
     chrome.runtime.sendMessage(message, function (response) {
         // OK
     });
-}
-
-export function findPin() {
-    const pin = $(`div[data-tooltip="Pin to screen"]`);
-    if (pin.position()) return pin;
-    return $(`div[data-tooltip="Unpin"]`);
-}
-
-export function findName(container: JQuery, userId: string): string {
-    let name = container.find("div[data-self-name]").first().text();
-    if (name) {
-        nameCache[userId] = name;
-    } else {
-        name = nameCache[userId];
-    }
-    return name || "";
-}
-
-export function getPreviewVideo() {
-    return $("video").filter((index, element) => $(element).height() <= 50).first();
 }

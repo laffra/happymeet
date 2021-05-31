@@ -1,227 +1,38 @@
-button.happy, button.unhappy {
-    color: white;
-    padding: 0 16px;
-    border-color: lightblue;
-    outline: none;
-    border-radius: 4px;
-    margin: 12px 0;
-    line-height: 36px;
-    font-family: 'Google Sans',Roboto,Arial,sans-serif;
-    font-weight: 500;
-    cursor: pointer;
+.happymeet-emojis-dialog {
+    background-color: white;
 }
 
-button.happy {
-    background-color: #1a73e8;
+.happymeet-emojis-dialog button {
+    padding: 3px;
+    font-size: 24px;
+    border: 3px solid transparent;
+    background-color: white;
+    width: 35px;
+    height: 35px;
+    margin: 5px;
 }
 
-button.happy:hover {
-    background-color: #3f88e6;
+.happymeet-emojis-dialog button:hover {
+    border: 3px solid orange;
 }
 
-button.unhappy {
-    background-color: #d3841c;
-}
-
-button.unhappy:hover {
-    background-color: #d2a05e;
-}
-
-.happymeet {
+.happymeet-emoji {
+    font-size: 60px;
+    display: block;
     position: absolute;
-    display: block;
-    z-index: 5;
-    left: 0;
-    top: 0;
-    width: 100%;
-    height: 100%;
-    background-color: #333;
-} 
-
-.happymeet .bubbles {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100%;
-    height: 100%;
-    z-index: 102;
+    z-index: 1000;
 }
 
-.happymeet .drawing {
-    position: absolute;
-    top: 0;
-    left: 0;
-    background: transparent;
-    width: 100%;
-    height: 100%;
+.happymeet-emoji-searchbar {
+    margin-bottom: 6px;
 }
 
-.happymeet .presentation {
-    display: block;
-    width: 80vw;
-}
-
-.happymeet .presentation video {
-    position: absolute; 
-    top: 0;
-    left: 10vw;
-    display: block;
-    width: 70vw;
-    background-color: #333;
-    z-index: 101;
-}
-
-.happymeet .presentation .message {
-    position: absolute; 
-    top: 0;
-    left: 20vw;
-    display: block;
-    width: 70vw;
-    color: white;
-    padding: 50px;
-    font-size: 2vw;
+.happymeet-emoji-filter-label {
     font-family: Arial, Helvetica, sans-serif;
-    overflow: hidden;
-    z-index: 100;
+    font-size: 24px;
+    color: black;
 }
 
-.happymeet .presentation .message .link {
-    color: lightblue;
-    cursor: pointer;
-}
-
-.happymeet .presentation .message .link:hover {
-    text-decoration: underline;
-}
-
-.happymeet svg {
-    width: 100%;
-    height: 100%;
-    display: block;
-}
-
-button.joinhappymeet {
-    position: absolute;
-    left: 10px;
-    top: 100px;
-    z-index: 100;
-    background-color: #1a73e8;
-    color: white;
-    padding: 8px 20px;
-    border-radius: 32px;
-    border-width: 0;
-    outline: none;
-    cursor: pointer;
-    font-family: 'Google Sans',Roboto,Arial,sans-serif;
-    font-size: 14px;
-    font-weight: 500;
-    letter-spacing: .25px;
-    line-height: 36px;
-}
-
-.bubble {
-    width: 150px;
-    height: 150px;
-    font-size: 20px;
-    text-shadow: 8px 8px 32px black;
-    z-index: 103;
-}
-
-.bubble.me {
-    z-index: 104;
-}
-
-.bubble .resizer {
-    position: absolute;
-    top: 0px;
-    left: 0px;
-    width: 130px;
-    height: 130px;
-    border: 0px solid green;
-    border-radius: 50%;
-    cursor: nwse-resize;
-    z-index: 102;
-}
-
-.bubble:hover .resizer {
-    border-width: 32px;
-}
-
-.bubble .clip {
-    position: absolute;
-    left: 20px;
-    top: 20px;
-    width: 130px;
-    height: 130px;
-    border: 4px solid grey;
-    overflow: hidden;
-    border-radius: 50%;
-    cursor: pointer;
-}
-
-.bubble.me .clip {
-    border-color: orange;
-}
-
-.bubble .ring {
-    position: absolute;
-    background-color: transparent;
-    left: 50px;
-    top: 50px;
-    width: 100px;
-    height: 100px;
-    border: 2px solid grey;
-    border-radius: 50%;
-}
-
-.bubble img {
-    width: 100%;
-    height: 100%;
-}
-
-.bubble video {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: calc(2 * 100%);
-    height: calc(2 * 100%);
-    margin-top: calc(100% / -2);
-    margin-left: calc(100% / -2);
-}
-
-.bubble .name {
-    position: absolute;
-    bottom: -50px;
-    width: 110%;
-    height: 24px;
-    text-align: center;
-    color: rgb(211, 210, 210);
-    font-family: 'Google Sans',Roboto,Arial,sans-serif;
-}
-
-.bubble .emojis {
-    display: none;
-    position: absolute;
-    padding: 20px;
-    top: -5px;
-    width: 50%;
-}
-
-.bubble:hover .emojis {
-    display: block;
-}
-
-.bubble .emojis div {
-    display: inline;
-    margin-right: 5px;
-    cursor: pointer;
-}
-
-.bubble .emojis div:hover {
-    opacity: 0.8;
-}
-
-.happymeet .emoji {
-    position: absolute;
-    z-index: 103;
+.happymeet-emoji-filter {
+    font-size: 32px;
 }

@@ -19,16 +19,12 @@
         "happymeet.css"
       ],
       "js" : [
-        "jquery/jquery.min.js",
+        "jquery/jquery.js",
         "jquery/jquery-ui.min.js",
         "require.js",
         "util.js",
-        "bubble.js",
         "emojis.js",
-        "presentation.js",
         "fullscreen.js",
-        "resizer.js",
-        "menus.js",
         "happymeet.js"
       ],
       "all_frames" : true
@@ -36,7 +32,7 @@
   ],
   "background": {
     "scripts": [
-      "jquery/jquery.min.js",
+      "jquery/jquery.js",
       "jquery/jquery-ui.min.js",
       "require.js",
       "util.js",

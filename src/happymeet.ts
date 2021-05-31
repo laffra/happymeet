@@ -1,15 +1,7 @@
-import { Job, VIDEO_KEY, debug } from './util';
-import { triggerMouseClick, sendMessage } from './util';
-import { Bubble } from './bubble';
-import { bottomMenu, findMenus } from './menus';
-import { findPresentationPreview, Presentation } from './presentation';
-
-type Message = any;
+import { EMOJIS } from './emojis';
+import { debug, getUserId, Job, sendMessage } from './util';
 
 class HappyMeet {
-    static enabled = false;
-    inMeeting = false;
-    noBubbles = true;
     domChecker = new Job("DOM Checker", this.check.bind(this));
 
     constructor() {
@@ -17,186 +9,166 @@ class HappyMeet {
         $("body").on("DOMSubtreeModified", function() {
             happymeet.domChecker.schedule(100);
         });
-        chrome.runtime.onMessage.addListener((message: Message, sender: chrome.runtime.MessageSender, sendResponse: (Message) => void) => {
+        sendMessage({
+            type: "start-meeting",
+        });
+        chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
             switch (message.type) {
-                case "start-meeting":
-                    if (Bubble.myBubble) {
-                        Bubble.myBubble.changed("Received start-meeting event");
-                    }
+                case "emoji":
+                    animateEmoji(message.userId, message.emoji);
                     sendResponse("OK");
                     break;
             }
         });
-        $(window).on("resize", this.centerButton);
     }
 
     check() {
-        this.checkMeetingStatus();
-        if (!HappyMeet.enabled || !this.inMeeting) return;
-        this.findNewVideos();
-        findPresentationPreview();
-        Presentation.check();
-        this.showCaptionDivs();
-    }
-
-    checkMeetingStatus() {
-        $("div[role='button'] i:contains('present_to_all')").each(this.checkPresentButton.bind(this));
-        $("button i:contains('present_to_all')").each(this.checkPresentButton.bind(this));
-        $("body").each(this.checkPresentButton.bind(this));
-    }
-
-    findNewVideos() {
-        if (!this.inMeeting || this.noBubbles) return;
-        $("video").each(function () {
-            const video = $(this);
-            if (video.hasClass("happymeet")) return;
-            const container = video.closest("div[jsmodel]");
-            video.addClass("happymeet");
-            const img = container.find("img");
-            const userId = $(this).parent().attr(VIDEO_KEY);
-            if (Presentation.isPresentation(container, video, userId)) {
-                debug("Found a new presentation")
-                new Presentation(video, userId);
-            }
-            if (Bubble.isPerson(container, userId)) {
-                debug("Found a new person")
-                Bubble.createBubble(container, video, img, userId);
-            }
-            HappyMeet.hideMeetUI();
-        });
-    }
-
-    static getMeetUI() {
-        return $(`div[${VIDEO_KEY}]`).parent().parent();
-    }
-
-    static hideMeetUI() {
-        HappyMeet.getMeetUI().css({
-            opacity: 0,
-        });
-        $(".happymeet").css({
-            opacity: 1,
-        });
-    }
-
-    static showMeetUI() {
-        HappyMeet.getMeetUI().css({
-            opacity: 1,
-        });
-        $(".happymeet").css({
-            opacity: 0,
-        });
-    }
-
-    addHappyMeet() {
-        if ($(".happymeet").position()) return;
-        $("<div>")
-            .addClass("happymeet")
-            .append($("<div>")
-                .addClass("presentation")
-                .append($("<div class='message'>Waiting for someone to present...</div>"))
-            )
-            .append($("<div>")
-                .addClass("bubbles")
-            )
-            .prependTo(bottomMenu.parent().parent().parent());
-    }
-
-    showCaptionDivs() {
-        $(`div[style^="bottom"]`)
-            .filter((index, element) => {
-                return ($(element).css("bottom") === "88px");
-            })
-            .css({
-                bottom: 8,
-                zIndex: 110,
-            })
-    }
-
-    meetingActive() {
-        const closedCaptionButton = $("button span:contains('closed_caption')");
-        return closedCaptionButton.height() > 0;
-    }
-
-    checkPresentButton(index: number, element: Element) {
-        const node = $(element);
-        const presentNowButton = node.closest("div[role='button']");
-        const joinButton = presentNowButton.parent().children().first();
-        if (this.meetingActive()) {
-            if (!this.inMeeting) {
-                sendMessage({
-                    type: "start-meeting",
-                });
-            }
-            this.inMeeting = true;
-            if (HappyMeet.enabled) {
-                findMenus();
-            }
-        } else {
-            if (this.inMeeting) {
-                sendMessage({ type:
-                    "leave-meeting",
-                    userId: Bubble.myBubble.userId,
-                });
-            }
-            this.inMeeting = false;
-        }
-        if (HappyMeet.enabled) {
-            this.addHappyMeet();
-        }
-        if (!joinButton.position()) return;
-        if (!this.inMeeting && !$(".joinhappymeet").position()) {
-            $("<button>")
-                .addClass("joinhappymeet")
-                .text("Join with HappyMeet")
-                .on("click", () => {
-                    if (HappyMeet.enabled) return;
-                    HappyMeet.enabled = true;
-                    triggerMouseClick(joinButton.find("span"));
-                    $(".joinhappymeet").remove();
-                })
-                .appendTo($("body"));
-        }
-        if (this.inMeeting) {
-            $(".joinhappymeet").remove();
-        }
-        this.centerButton();
-    }
-
-    centerButton() {
-        const logoOffset = $("img[alt='Meet logo']").offset();
-        if (!logoOffset) return;
-        $(".joinhappymeet")
-            .css({
-                top: logoOffset.top,
-                left: $("body").width()/2 - 60,
-            })
-    }
-
-    static disable() {
-        HappyMeet.showMeetUI();
-        HappyMeet.enabled = false;
-        Bubble.reparentVideos();
-        Presentation.reparentVideos();
-    }
-
-    static enable() {
-        HappyMeet.hideMeetUI();
-        HappyMeet.enabled = true;
+        addEmojiButton();
     }
 }
 
-$("body")
-    .on("keyup", event => {
-        switch (event.which) {
-            case 77: // m
-                HappyMeet.disable();
-                break;
-            case 72: // h
-                HappyMeet.enable();
-                break;
+export function addEmojiButton() {
+    if ($(".happymeet-emojis-button").position()) return;
+    const button = $(`span:contains("closed_caption")`).closest("button");
+    const buttonDiv = button.parent().parent().parent();
+    buttonDiv.after(
+        $("<div>")
+            .attr("class", button.parent().parent().parent().attr("class"))
+            .append(
+                $("<div>")
+                    .attr("class", button.parent().parent().attr("class"))
+                    .append(
+                        $("<span>")
+                            .attr("class", button.parent().attr("class"))
+                            .append(
+                                $("<button>")
+                                    .attr("class", button.attr("class"))
+                                    .addClass("happymeet-emojis-button")
+                                    .css("padding", 5)
+                                    .on("mousedown", showEmojis)
+                                    .text("😊")
+                            )
+                    )
+            )
+    )
+}
+
+function showEmojis() {
+    let dialog = $(".happymeet-emojis-dialog");
+    if (!dialog.position()) {
+        dialogDiv.find("button").css("display", "none");
+        dialog = dialogDiv.dialog({
+            height: 200,
+            width: 600,
+            closeOnEscape: true,
+            title: 'HappyMeet: Send an Emoji to all attendees...',
+        });
+        setTimeout(filterEmojis, 1);
+    }
+    dialog.dialog("open");
+    $(".ui-icon-closethick")
+        .text("x")
+        .css({
+            color: "black",
+        })
+}
+
+function animateEmoji(userId, emoji) {
+    const video = $(`div[data-ssrc="${userId}"]`).parent();
+    debug("show emoji", userId, emoji, video.position());
+    if (!video.offset()) return;
+    video.find(".happymeet-emoji").remove();
+    $("<div>")
+        .addClass("happymeet-emoji")
+        .appendTo(video)
+        .css({
+            left: 0,
+            marginLeft: 12,
+            marginTop: 8,
+            opacity: 1,
+            zIndex: 1000,
+        })
+        .text(emoji)
+        .animate({ 
+            opacity: 0,
+        }, 25000, "linear", function () { $(this).remove(); });
+    const middle = video.offset().left + video.width() / 2 - 20;
+    const center = video.offset().top + video.height() / 2 - 30;
+    for (var angle = 0; angle < Math.PI * 2; angle += Math.PI / 6) {
+        const left = middle + Math.cos(angle) * 800;
+        const top = center + Math.sin(angle) * 800;
+        $("<div>")
+            .addClass("happymeet-emoji")
+            .appendTo($("body"))
+            .text(emoji)
+            .css({
+                fontSize: 60,
+                left: middle,
+                top: center,
+            })
+            .animate({
+                fontSize: 22,
+                left,
+                top,
+                opacity: 0.3,
+            }, 3000, "linear", function () { $(this).remove() });
+    }
+}
+
+const dialogDiv = createDialogDiv()
+
+function filterEmojis() {
+    const div = $(".happymeet-emojis-dialog");
+    const searchString: string = $(".happymeet-emoji-filter").val() as string;
+    div.find("button").css("display", "inline-block");
+    div.find("button").each((index, element) => {
+        const button = $(element);
+        if (!button.attr("search").match(new RegExp(searchString))) {
+            button.css("display", "none");
         }
     });
+}
 
+function createDialogDiv() {
+    const div = $("<div>")
+        .addClass("happymeet-emojis-dialog")
+        .css("background-color", "white");
+    $("<div>")
+        .appendTo(div)
+        .addClass("happymeet-emoji-searchbar")
+        .append(
+            $("<span>")
+                .addClass("happymeet-emoji-filter-label")
+                .css({
+                    fontSize: 24,
+                })
+                .text("Search:"),
+            $("<input>")
+                .addClass("happymeet-emoji-filter")
+                .css({
+                    fontSize: 24,
+                    marginLeft: 8,
+                })
+                .on("keyup", filterEmojis)
+
+        )
+    EMOJIS.forEach(entry => {
+        $("<button>")
+            .text(entry.emoji)
+            .attr("name", entry.name)
+            .attr("category", entry.category)
+            .attr("search", `${entry.name} ${entry.category}`)
+            .css("display", "none")
+            .on("click", () => {
+                sendMessage({
+                    type: "emoji",
+                    userId: getUserId(),
+                    emoji: entry.emoji,
+                });
+            })
+            .appendTo(div);
+    })
+    return div;
+}
 
 new HappyMeet();
