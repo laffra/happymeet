@@ -123,35 +123,22 @@ function filterEmojis() {
     div.find("button").css("display", "inline-block");
     div.find("button").each((index, element) => {
         const button = $(element);
-        if (!button.attr("search").match(new RegExp(searchString))) {
+        if (!button.attr("search").match(new RegExp(searchString, "i"))) {
             button.css("display", "none");
         }
     });
 }
 
 function createDialogDiv() {
-    const div = $("<div>")
-        .addClass("happymeet-emojis-dialog")
-        .css("background-color", "white");
-    $("<div>")
-        .appendTo(div)
-        .addClass("happymeet-emoji-searchbar")
-        .append(
-            $("<span>")
-                .addClass("happymeet-emoji-filter-label")
-                .css({
-                    fontSize: 24,
-                })
-                .text("Search:"),
-            $("<input>")
-                .addClass("happymeet-emoji-filter")
-                .css({
-                    fontSize: 24,
-                    marginLeft: 8,
-                })
-                .on("keyup", filterEmojis)
-
-        )
+    const search = $("<input>")
+        .attr("placeholder", "search")
+        .addClass("happymeet-emoji-filter")
+        .css({
+            fontSize: 18,
+        })
+        .on("keyup", filterEmojis)
+    const emojis = $("<div>")
+        .addClass("happymeet-emoji-container");
     EMOJIS.forEach(entry => {
         $("<button>")
             .text(entry.emoji)
@@ -166,9 +153,18 @@ function createDialogDiv() {
                     emoji: entry.emoji,
                 });
             })
-            .appendTo(div);
-    })
-    return div;
+            .appendTo(emojis);
+    });
+    return $("<div>")
+        .addClass("happymeet-emojis-dialog")
+        .css("background-color", "white")
+        .on("scroll", () => {
+            search.css("top", $(".happymeet-emojis-dialog").scrollTop() + 8);
+        })
+        .append(
+            search,
+            emojis,
+        );
 }
 
 new HappyMeet();
