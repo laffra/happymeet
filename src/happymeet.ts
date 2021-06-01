@@ -29,6 +29,31 @@ class HappyMeet {
 
 export function addEmojiButton() {
     if ($(".happymeet-emojis-button").position()) return;
+    addEmojiButtonNew();
+    addEmojiButtonOld();
+}
+
+export function addEmojiButtonOld() {
+    const button = $(`div[aria-label="Leave call"]`);
+    const buttonDiv = button.parent();
+    buttonDiv.after(
+        $("<div>")
+            .attr("class", buttonDiv.attr("class"))
+            .append(
+                $("<button>")
+                    .attr("class", button.attr("class"))
+                    .addClass("happymeet-emojis-button")
+                    .css({
+                        padding: 5,
+                        fontSize: 36,
+                    })
+                    .on("mousedown", showEmojis)
+                    .text("😊")
+            )
+    )
+}
+
+export function addEmojiButtonNew() {
     const button = $(`span:contains("closed_caption")`).closest("button");
     const buttonDiv = button.parent().parent().parent();
     buttonDiv.after(
@@ -74,7 +99,7 @@ function showEmojis() {
 }
 
 function animateEmoji(userId, emoji) {
-    const video = $(`div[data-ssrc="${userId}"]`).parent();
+    const video = $(`div[data-ssrc="${userId}"]`).last().parent();
     debug("show emoji", userId, emoji, video.position());
     if (!video.offset()) return;
     video.find(".happymeet-emoji").remove();
