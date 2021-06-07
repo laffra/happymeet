@@ -32,10 +32,8 @@ export class Job {
 };
 
 export function getUserId() {
-    const you = $(`div[data-self-name="You"]`).filter((index, element) => {
-        return $(element).text() === "You";
-    });
-    const container = you.closest("div[jsmodel]");
+    const fullscreen = $(`i:contains("close_fullscreen")`);
+    const container = fullscreen.closest("div[jsmodel]");
     const videoParent = container.find("div[data-ssrc]");
     return videoParent.attr("data-ssrc");
 }
