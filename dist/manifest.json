@@ -2,14 +2,15 @@
   "name": "HappyMeet - Making Meetings Better",
   "short_name": "happymeet",
   "description": "Make Google Meet more engaging.",
-  "version": "0.25",
+  "version": "0.28",
   "permissions": [
   ],
   "author": "Chris Laffra - chris@chrislaffra.com",
   "content_scripts" : [
     {
       "matches" : [
-        "https://meet.google.com/*"
+        "https://meet.google.com/*",
+        "https://chrislaffra.com/*"
       ],
       "css" : [
         "jquery/jquery-ui.min.css",
