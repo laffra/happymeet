@@ -1,5 +1,5 @@
 import { EMOJIS } from './emojis';
-import { debug, getUserId, Job, sendMessage } from './util';
+import { debug, getUserId, Job, log, sendMessage } from './util';
 
 class HappyMeet {
     domChecker = new Job("DOM Checker", this.check.bind(this));
@@ -54,8 +54,8 @@ export function addEmojiButtonOld() {
 }
 
 export function addEmojiButtonNew() {
-    const button = $(`span:contains("closed_caption")`).closest("button");
-    const buttonDiv = button.parent().parent().parent();
+    const buttonDiv = $(`div[data-show-automatic-dialog]`);
+    const button = buttonDiv.find("button");
     buttonDiv.after(
         $("<div>")
             .attr("class", button.parent().parent().parent().attr("class"))
@@ -167,7 +167,7 @@ function createDialogDiv() {
     EMOJIS.forEach(entry => {
         $("<button>")
             .text(entry.emoji)
-            .attr("name", entry.name)
+            .attr("title", entry.name)
             .attr("category", entry.category)
             .attr("search", `${entry.name} ${entry.category}`)
             .css("display", "none")
@@ -192,4 +192,12 @@ function createDialogDiv() {
         );
 }
 
-new HappyMeet();
+if (document.location.href.match("chrislaffra.com")) {
+    $("<happymeet>")
+        .attr("id", "happymeet")
+        .appendTo($("body"));
+    log("Inserted marker.");
+} else {
+    new HappyMeet();
+    log("Extension installed.");
+}
