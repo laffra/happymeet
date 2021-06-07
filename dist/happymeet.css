@@ -7,9 +7,10 @@
     font-size: 24px;
     border: 3px solid transparent;
     background-color: white;
-    width: 35px;
-    height: 35px;
-    margin: 5px;
+    width: 40px;
+    height: 45px;
+    margin: 0 2px;
+    cursor: pointer;
 }
 
 .happymeet-emojis-dialog button:hover {
@@ -31,7 +32,7 @@
 
 .happymeet-emoji-container {
     position: absolute;
-    top: 28px;
+    top: 40px;
     overflow-y: scroll;
     margin-bottom: 6px;
     z-index: 1;
