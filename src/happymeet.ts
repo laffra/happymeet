@@ -29,31 +29,6 @@ class HappyMeet {
 
 export function addEmojiButton() {
     if ($(".happymeet-emojis-button").position()) return;
-    addEmojiButtonNew();
-    addEmojiButtonOld();
-}
-
-export function addEmojiButtonOld() {
-    const button = $(`div[aria-label="Leave call"]`);
-    const buttonDiv = button.parent();
-    buttonDiv.after(
-        $("<div>")
-            .attr("class", buttonDiv.attr("class"))
-            .append(
-                $("<button>")
-                    .attr("class", button.attr("class"))
-                    .addClass("happymeet-emojis-button")
-                    .css({
-                        padding: 5,
-                        fontSize: 36,
-                    })
-                    .on("mousedown", showEmojis)
-                    .text("😊")
-            )
-    )
-}
-
-export function addEmojiButtonNew() {
     const allButtons = $("button");
     if (allButtons.length < 5) return;
     const buttonDiv = $(`div[data-show-automatic-dialog]`);
