@@ -24,7 +24,6 @@
         "require.js",
         "util.js",
         "emojis.js",
-        "fullscreen.js",
         "happymeet.js"
       ],
       "all_frames" : true
