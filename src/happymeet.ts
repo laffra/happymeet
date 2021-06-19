@@ -54,6 +54,8 @@ export function addEmojiButtonOld() {
 }
 
 export function addEmojiButtonNew() {
+    const allButtons = $("button");
+    if (allButtons.length < 5) return;
     const buttonDiv = $(`div[data-show-automatic-dialog]`);
     const button = buttonDiv.find("button");
     buttonDiv.after(
