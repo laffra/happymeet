@@ -1,5 +1,5 @@
 import { EMOJIS } from './emojis';
-import { debug, getUserId, Job, log, sendMessage } from './util';
+import { debug, findAdjacent, getUserId, Job, log, sendMessage} from './util';
 
 class HappyMeet {
     domChecker = new Job("DOM Checker", this.check.bind(this));
@@ -154,6 +154,10 @@ function createDialogDiv() {
                     userId: getUserId(),
                     emoji: entry.emoji,
                 });
+                openChatWindow();
+                setTimeout(function() {
+                    sendEmojiToChat(entry.emoji);
+                }, 300);
             })
             .appendTo(emojis);
     });
@@ -168,6 +172,35 @@ function createDialogDiv() {
             emojis,
         );
 }
+
+function createEvent(eventType: string, key: string) {
+    return new KeyboardEvent(eventType, {
+        key: key,
+        keyCode: key.charCodeAt(0),
+    } as any); 
+}
+
+function openChatWindow() {
+    const button = $('button[aria-label="Chat with everyone"]');
+    if (button.attr("aria-pressed") == "true") {
+        return;
+    } 
+    button[0].click();
+}
+
+function sendEmojiToChat(emoji: string) {
+    const textarea = $('textarea[name="chatTextInput"]');
+    textarea.val(emoji);
+
+    var e = document.createEvent("Event");
+    e.initEvent('change', false, false);
+    textarea[0].dispatchEvent(e);
+
+    const button = textarea.parent().parent().parent().parent().parent().find("button");
+    button.attr("disabled", null);
+    button[0].click();
+}
+
 
 if (document.location.href.match("chrislaffra.com")) {
     $("<happymeet>")

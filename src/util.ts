@@ -46,6 +46,16 @@ export function debug(...args) {
     // console.log("HappyMeet:", ...args);
 }
 
+export function findAdjacent(node, target) {
+    var result = $("");
+    var div = node.parent();
+    while (div.position() && !result.position()) {
+        result = div.find(target);
+        div = div.parent();
+    }
+    return result;
+}
+
 export function sendMessage(message) {
     message.meetingId = meetingId;
     log("sendMessage", message);
